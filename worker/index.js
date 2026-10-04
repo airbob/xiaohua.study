@@ -40,6 +40,7 @@ async function route(request, env, url) {
   if (p === '/api/auth/email/verify' && m === 'GET') return auth.emailVerifyPage(request)
   if (p === '/api/auth/email/verify' && m === 'POST') return auth.emailVerifyLink(request, env)
   if (p === '/api/auth/email/code' && m === 'POST') return auth.emailVerifyCode(request, env)
+  if (p === '/api/auth/child' && m === 'POST') return auth.childLogin(request, env)
   if (p === '/api/auth/logout' && m === 'POST') return auth.logout(request, env)
 
   // ---- everything else needs a parent session ----
@@ -63,6 +64,10 @@ async function authed(request, env, user, p, m) {
     if (sub === '/progress' && m === 'GET') return api.getProgress(env, user, id)
     if (sub === '/sets' && m === 'POST') return api.saveSet(request, env, user, id)
     if (sub === '/import' && m === 'POST') return api.importLocal(request, env, user, id)
+    if (sub === '/pin' && m === 'PUT') return api.setPin(request, env, user, id)
+    if (sub === '/devices' && m === 'GET') return api.listDevices(env, user, id)
+    if (sub === '/devices' && m === 'DELETE') return api.revokeDevices(env, user, id)
+    if (sub === '/handover' && m === 'POST') return api.handover(request, env, user, id)
   }
   return fail(404, 'not_found')
 }

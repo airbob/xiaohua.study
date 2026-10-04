@@ -1,5 +1,6 @@
 // Child profiles and their practice progress. Every handler gets the signed-in parent.
 import { now, json, readJson, HttpError } from './util.js'
+import { pinHash, startSession, endCurrentSession } from './auth.js'
 
 const GRADES = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']
 const AVATARS = ['🐼', '🐯', '🐰', '🐨', '🦊', '🐸', '🐧', '🦁', '🐳', '🦄']
@@ -21,20 +22,85 @@ function cleanProfile(body, partial = false) {
   return out
 }
 
+// A child session may only reach its own profile; parents reach all of theirs.
 async function ownProfile(env, user, id) {
+  if (user.childId && user.childId !== id) throw new HttpError(404, 'profile_not_found')
   const p = await env.DB.prepare('SELECT * FROM profiles WHERE id = ? AND user_id = ?').bind(id, user.id).first()
   if (!p) throw new HttpError(404, 'profile_not_found')
   return p
 }
 
+function parentOnly(user) {
+  if (user.childId) throw new HttpError(403, 'parent_only')
+}
+
 const publicProfile = (p) => ({ id: p.id, name: p.name, grade: p.grade, avatar: p.avatar })
 
 export async function me(env, user) {
-  const { results } = await env.DB.prepare('SELECT * FROM profiles WHERE user_id = ? ORDER BY created_at').bind(user.id).all()
-  return json({ user: { email: user.email, name: user.name, plan: user.plan }, profiles: results.map(publicProfile) })
+  if (user.childId) {
+    const p = await ownProfile(env, user, user.childId)
+    return json({ child: true, user: { email: user.email }, profiles: [publicProfile(p)] })
+  }
+  const { results } = await env.DB.prepare(
+    `SELECT p.*, (SELECT COUNT(*) FROM sessions s WHERE s.profile_id = p.id AND s.expires_at > ?) AS devices
+       FROM profiles p WHERE p.user_id = ? ORDER BY p.created_at`,
+  )
+    .bind(now(), user.id)
+    .all()
+  return json({
+    child: false,
+    user: { email: user.email, name: user.name, plan: user.plan },
+    profiles: results.map((p) => ({ ...publicProfile(p), hasPin: !!p.pin_hash, devices: p.devices })),
+  })
+}
+
+const WEAK_PINS = new Set(['123456', '654321', '012345', '123123', '112233', '121212'])
+
+/** Parent sets (or resets) a child's 6-digit PIN. PINs must differ between siblings. */
+export async function setPin(request, env, user, id) {
+  parentOnly(user)
+  await ownProfile(env, user, id)
+  const pin = String((await readJson(request, 500)).pin || '').trim()
+  if (!/^\d{6}$/.test(pin)) throw new HttpError(400, 'bad_pin_format')
+  if (/^(\d)\1{5}$/.test(pin) || WEAK_PINS.has(pin)) throw new HttpError(400, 'pin_too_simple')
+  const { results: siblings } = await env.DB.prepare('SELECT id, pin_hash FROM profiles WHERE user_id = ? AND id != ? AND pin_hash IS NOT NULL')
+    .bind(user.id, id)
+    .all()
+  for (const sib of siblings) if ((await pinHash(env, sib.id, pin)) === sib.pin_hash) throw new HttpError(400, 'pin_taken')
+  await env.DB.prepare('UPDATE profiles SET pin_hash = ?, pin_set_at = ? WHERE id = ?').bind(await pinHash(env, id, pin), now(), id).run()
+  return json({ ok: true })
+}
+
+/** Devices where this child is signed in. */
+export async function listDevices(env, user, id) {
+  parentOnly(user)
+  await ownProfile(env, user, id)
+  const { results } = await env.DB.prepare(
+    'SELECT device, created_at, last_seen FROM sessions WHERE profile_id = ? AND expires_at > ? ORDER BY last_seen DESC',
+  )
+    .bind(id, now())
+    .all()
+  return json({ devices: results })
+}
+
+export async function revokeDevices(env, user, id) {
+  parentOnly(user)
+  await ownProfile(env, user, id)
+  const { meta } = await env.DB.prepare('DELETE FROM sessions WHERE profile_id = ?').bind(id).run()
+  return json({ ok: true, revoked: meta.changes })
+}
+
+/** Parent hands this device to a child: the parent session ends, a child session starts. */
+export async function handover(request, env, user, id) {
+  parentOnly(user)
+  const p = await ownProfile(env, user, id)
+  await endCurrentSession(request, env)
+  const setCookie = await startSession(request, env, user.id, id)
+  return json({ ok: true, profile: publicProfile(p) }, 200, { 'Set-Cookie': setCookie })
 }
 
 export async function createProfile(request, env, user) {
+  parentOnly(user)
   const body = cleanProfile(await readJson(request, 2000))
   const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM profiles WHERE user_id = ?').bind(user.id).first()
   if (n >= MAX_PROFILES) throw new HttpError(400, 'too_many_profiles')
@@ -46,6 +112,7 @@ export async function createProfile(request, env, user) {
 }
 
 export async function updateProfile(request, env, user, id) {
+  parentOnly(user)
   await ownProfile(env, user, id)
   const body = cleanProfile(await readJson(request, 2000), true)
   const keys = Object.keys(body)
@@ -55,8 +122,9 @@ export async function updateProfile(request, env, user, id) {
 }
 
 export async function deleteProfile(env, user, id) {
+  parentOnly(user)
   await ownProfile(env, user, id)
-  await env.DB.batch(['attempts', 'sets', 'progress'].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE profile_id = ?`).bind(id)).concat(
+  await env.DB.batch(['attempts', 'sets', 'progress', 'sessions'].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE profile_id = ?`).bind(id)).concat(
     env.DB.prepare('DELETE FROM profiles WHERE id = ?').bind(id),
   ))
   return json({ ok: true })
@@ -148,12 +216,13 @@ export async function importLocal(request, env, user, id) {
 }
 
 export async function deleteAccount(env, user) {
+  parentOnly(user)
   const ids = (await env.DB.prepare('SELECT id FROM profiles WHERE user_id = ?').bind(user.id).all()).results.map((r) => r.id)
   const stmts = []
   for (const pid of ids) for (const t of ['attempts', 'sets', 'progress']) stmts.push(env.DB.prepare(`DELETE FROM ${t} WHERE profile_id = ?`).bind(pid))
   stmts.push(
-    env.DB.prepare('DELETE FROM profiles WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
+    env.DB.prepare('DELETE FROM profiles WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM login_tokens WHERE email = ?').bind(user.email),
     env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
   )

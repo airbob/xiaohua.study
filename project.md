@@ -54,7 +54,11 @@ the device's guest progress is merged in.
   Strokes are not stored.
 - Client: `src/lib/account.js` (session + profiles), `src/lib/storage.js` (per-profile local
   cache + outbox that posts finished sets, retried when offline).
-- Secrets (wrangler secret put): GOOGLE_CLIENT_SECRET, RESEND_API_KEY. Var: GOOGLE_CLIENT_ID.
+- Children sign in with the parent's email + their own 6-digit PIN (set by the parent, unique
+  within a family); a child session lasts 180 days (sliding) and can only see/practise that
+  child. Parents can also hand a device over ("孩子模式") and sign out all of a child's devices.
+- Secrets (wrangler secret put): RESEND_API_KEY, PIN_PEPPER (HMAC key for PIN hashes — never
+  change it, or every child PIN stops working), GOOGLE_CLIENT_SECRET (not set yet). Var: GOOGLE_CLIENT_ID.
 - Local dev: `npx wrangler d1 migrations apply xiaohua-study --local`, then `npx wrangler dev`
   (port 8787) + `npm run dev` (proxies /api). `.dev.vars` has DEV_LOGIN_LINKS=1, which shows
   the email code on screen instead of sending mail.

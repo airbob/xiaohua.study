@@ -2,8 +2,7 @@
 
 ## This Week
 - [ ] (Later, optional) Google OAuth client — the button appears by itself once configured (redirect https://xiaohua.study/api/auth/google/callback) → GOOGLE_CLIENT_ID in wrangler.jsonc, GOOGLE_CLIENT_SECRET secret.
-- [ ] Resend: verify xiaohua.study sending domain, RESEND_API_KEY secret.
-- [ ] Confirm Workers Builds deploy command is `npx wrangler deploy` (so wrangler.jsonc + worker/ are used).
+- [x] Resend: xiaohua.study verified, RESEND_API_KEY set; real login email received 2026-10-04.
 - [ ] Try free writing on a real iPad with a student; tune grading thresholds (`TOL` in src/lib/grade.js).
 - [ ] Listen through a sample of clips; add mispronounced 多音字 to data/tts-overrides.json and redo with ONLY=… FORCE=1.
 - [ ] Review the P1 list against 欢乐伙伴 1A/1B.

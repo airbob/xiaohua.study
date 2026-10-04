@@ -4,7 +4,7 @@ import { api } from './api.js'
 import { setScope, cacheProfile, flushOutbox, guestData, hasGuestData } from './storage.js'
 
 const KEY_ACTIVE = 'xhw.activeProfile'
-let state = { status: 'loading', user: null, profiles: [], activeId: null, version: 0, notice: null }
+let state = { status: 'loading', child: false, user: null, profiles: [], activeId: null, version: 0, notice: null }
 const listeners = new Set()
 
 function set(patch) {
@@ -39,10 +39,10 @@ const remembered = () => {
 
 export async function initAccount() {
   try {
-    const { user, profiles } = await api('/api/me')
-    const id = profiles.find((p) => p.id === remembered())?.id || profiles[0]?.id || null
+    const { user, profiles, child } = await api('/api/me')
+    const id = child ? profiles[0]?.id : profiles.find((p) => p.id === remembered())?.id || profiles[0]?.id || null
     setScope(id)
-    set({ status: 'signed-in', user, profiles, activeId: id })
+    set({ status: 'signed-in', child: !!child, user, profiles, activeId: id })
     flushOutbox()
     if (id) await refreshProgress(id)
   } catch (e) {
@@ -51,7 +51,7 @@ export async function initAccount() {
     if (e.code === 'offline' && remembered()) {
       setScope(remembered())
       set({ status: 'offline', activeId: remembered() })
-    } else set({ status: 'guest', user: null, profiles: [], activeId: null })
+    } else set({ status: 'guest', child: false, user: null, profiles: [], activeId: null })
   }
 }
 
@@ -105,7 +105,7 @@ export async function signOut() {
   await api('/api/auth/logout', { method: 'POST' }).catch(() => {})
   remember(null)
   setScope(null)
-  set({ status: 'guest', user: null, profiles: [], activeId: null })
+  set({ status: 'guest', child: false, user: null, profiles: [], activeId: null })
 }
 
 export async function deleteAccount() {
@@ -117,6 +117,51 @@ export async function deleteAccount() {
 
 export const clearNotice = () => set({ notice: null })
 export const showNotice = (notice) => set({ notice })
+
+// ---- children ----------------------------------------------------------------
+
+const KEY_FAMILY = 'xhw.familyEmail'
+export const familyEmail = () => {
+  try {
+    return localStorage.getItem(KEY_FAMILY) || ''
+  } catch {
+    return ''
+  }
+}
+
+/** A child signs in with the parent's email + their PIN; this device stays signed in for 6 months. */
+export async function childSignIn(email, pin) {
+  await api('/api/auth/child', { method: 'POST', body: { email, pin } })
+  try {
+    localStorage.setItem(KEY_FAMILY, email.trim().toLowerCase())
+  } catch {
+    /* ignore */
+  }
+  await initAccount()
+}
+
+/** Parent gives this device to a child: the parent is signed out here, the child signed in. */
+export async function handOver(id) {
+  await api(`/api/profiles/${id}/handover`, { method: 'POST' })
+  try {
+    localStorage.setItem(KEY_FAMILY, state.user?.email || '')
+  } catch {
+    /* ignore */
+  }
+  await initAccount()
+}
+
+export async function setPin(id, pin) {
+  await api(`/api/profiles/${id}/pin`, { method: 'PUT', body: { pin } })
+  set({ profiles: state.profiles.map((p) => (p.id === id ? { ...p, hasPin: true } : p)) })
+}
+
+export const listDevices = (id) => api(`/api/profiles/${id}/devices`).then((r) => r.devices)
+
+export async function revokeDevices(id) {
+  await api(`/api/profiles/${id}/devices`, { method: 'DELETE' })
+  set({ profiles: state.profiles.map((p) => (p.id === id ? { ...p, devices: 0 } : p)) })
+}
 
 export const sendEmailLink = (email) => api('/api/auth/email/start', { method: 'POST', body: { email } })
 export const verifyEmailCode = (email, code) => api('/api/auth/email/code', { method: 'POST', body: { email, code } })

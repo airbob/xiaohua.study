@@ -5,7 +5,7 @@ import Results from './components/Results.jsx'
 import { buildSet, LEVELS } from './lib/bank.js'
 import { loadPrefs, savePrefs } from './lib/storage.js'
 import { useAccount, initAccount, showNotice } from './lib/account.js'
-import { LoginModal, ProfileModal, AccountSheet } from './components/AccountUI.jsx'
+import { LoginModal, ProfileModal, AccountSheet, ChildSheet } from './components/AccountUI.jsx'
 
 const LOGIN_ERRORS = {
   cancelled: '已取消 Google 登录',
@@ -69,13 +69,19 @@ export default function App() {
   const modals = (
     <>
       {modal === 'login' && <LoginModal onClose={() => setModal(null)} />}
+      {modal === 'child' && <ChildSheet onClose={() => setModal(null)} />}
       {modal === 'account' && (
         <AccountSheet onClose={() => setModal(null)} onEdit={(p) => setModal({ edit: p })} onAdd={() => setModal('profile-new')} />
       )}
       {(modal === 'profile-new' || modal === 'profile-first') && (
         <ProfileModal first={modal === 'profile-first'} onClose={() => setModal(null)} />
       )}
-      {modal?.edit && <ProfileModal profile={modal.edit} onClose={() => setModal('account')} />}
+      {modal?.edit && (
+        <ProfileModal
+          profile={account.profiles.find((p) => p.id === modal.edit.id) || modal.edit}
+          onClose={(why) => setModal(why === 'handover' ? null : 'account')}
+        />
+      )}
     </>
   )
 

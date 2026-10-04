@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 — 2026-10-04
+- Child sign-in: parents set a 6-digit PIN per child; a child signs in with the parent's email + their PIN and stays signed in on that device for 6 months (renewed with use). Wrong PINs are rate-limited.
+- Child sessions only see and practise their own profile — no switching, editing or deleting.
+- Parents see each child's signed-in devices and can sign them all out; "孩子模式" hands the current device to a child.
+
 ## 0.4.0 — 2026-10-04
 - Parent accounts: sign in with an emailed link / 6-digit code (Google sign-in built in, shown once configured); add up to 6 children (nickname, grade, avatar) and switch between them.
 - Each child's 错词本, seen-counts and history are saved to the cloud and follow them across devices; practice still works offline and syncs later.

@@ -2,40 +2,111 @@
 // tokens in an HttpOnly cookie; only their sha256 is stored.
 import { now, DAY, json, fail, redirect, randomToken, randomCode, sha256, parseCookies, cookie, isSecure, readJson, HttpError, html } from './util.js'
 
-const SESSION_DAYS = 90
+const PARENT_DAYS = 90
+const CHILD_DAYS = 180 // a child's device stays signed in for half a year, renewed whenever it's used
 const LINK_MINUTES = 20
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/
 
+const sessionDays = (s) => (s.profile_id ? CHILD_DAYS : PARENT_DAYS)
+
 // ---- sessions ----------------------------------------------------------------
 
+/** The signed-in parent, or a child (childId set) who may only touch their own profile. */
 export async function currentUser(request, env) {
   const token = parseCookies(request).sid
   if (!token) return null
   const row = await env.DB.prepare(
-    `SELECT u.id, u.email, u.name, u.plan, s.id AS sid, s.expires_at
+    `SELECT u.id, u.email, u.name, u.plan, s.id AS sid, s.expires_at, s.profile_id, s.last_seen
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.id = ? AND s.expires_at > ?`,
   )
     .bind(await sha256(token), now())
     .first()
   if (!row) return null
-  // sliding expiry: renew when less than 60 days are left
-  if (row.expires_at - now() < (SESSION_DAYS - 30) * DAY) {
-    await env.DB.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').bind(now() + SESSION_DAYS * DAY, row.sid).run()
-    row.renewCookie = cookie('sid', token, { maxAge: SESSION_DAYS * 86400, secure: isSecure(request) })
+  row.childId = row.profile_id || null
+  const days = sessionDays(row)
+  const t = now()
+  // sliding expiry: renew once a month's worth has been used up; note last use at most hourly
+  if (row.expires_at - t < (days - 30) * DAY) {
+    await env.DB.prepare('UPDATE sessions SET expires_at = ?, last_seen = ? WHERE id = ?').bind(t + days * DAY, t, row.sid).run()
+    row.renewCookie = cookie('sid', token, { maxAge: days * 86400, secure: isSecure(request) })
+  } else if (!row.last_seen || t - row.last_seen > 3600_000) {
+    await env.DB.prepare('UPDATE sessions SET last_seen = ? WHERE id = ?').bind(t, row.sid).run()
   }
   return row
 }
 
-async function startSession(request, env, userId) {
+function deviceLabel(request) {
+  const ua = request.headers.get('User-Agent') || ''
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && /Mobile/.test(ua))) return 'iPad'
+  if (/iPhone/.test(ua)) return 'iPhone'
+  if (/Android/.test(ua)) return /Mobile/.test(ua) ? 'Android 手机' : 'Android 平板'
+  if (/Macintosh/.test(ua)) return 'Mac'
+  if (/Windows/.test(ua)) return 'Windows 电脑'
+  if (/CrOS/.test(ua)) return 'Chromebook'
+  return '浏览器'
+}
+
+export async function startSession(request, env, userId, profileId = null) {
   const token = randomToken()
   const t = now()
+  const days = profileId ? CHILD_DAYS : PARENT_DAYS
   await env.DB.batch([
-    env.DB.prepare('INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)').bind(await sha256(token), userId, t, t + SESSION_DAYS * DAY),
+    env.DB.prepare('INSERT INTO sessions (id, user_id, profile_id, device, created_at, last_seen, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(
+      await sha256(token), userId, profileId, deviceLabel(request), t, t, t + days * DAY,
+    ),
     env.DB.prepare('UPDATE users SET last_login = ? WHERE id = ?').bind(t, userId),
     env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(t),
   ])
-  return cookie('sid', token, { maxAge: SESSION_DAYS * 86400, secure: isSecure(request) })
+  return cookie('sid', token, { maxAge: days * 86400, secure: isSecure(request) })
+}
+
+/** Ends the current session (if any) — used when a parent hands this device to a child. */
+export async function endCurrentSession(request, env) {
+  const token = parseCookies(request).sid
+  if (token) await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(await sha256(token)).run()
+}
+
+// ---- child PINs ------------------------------------------------------------------
+
+export async function pinHash(env, profileId, pin) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.PIN_PEPPER || 'dev-pepper'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${profileId}:${pin}`))
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** Child sign-in: the parent's email + the child's 6-digit PIN. */
+export async function childLogin(request, env) {
+  const body = await readJson(request, 2000)
+  const email = String(body.email || '').trim().toLowerCase()
+  const pin = String(body.pin || '').trim()
+  if (!EMAIL_RE.test(email) || !/^\d{6}$/.test(pin)) throw new HttpError(400, 'bad_pin_format')
+  const ip = request.headers.get('CF-Connecting-IP') || 'local'
+  const t = now()
+  const recent = await env.DB.prepare(
+    `SELECT (SELECT COUNT(*) FROM pin_failures WHERE email = ?1 AND created_at > ?2) AS by_email,
+            (SELECT COUNT(*) FROM pin_failures WHERE ip = ?3 AND created_at > ?4) AS by_ip`,
+  )
+    .bind(email, t - 15 * 60_000, ip, t - 60 * 60_000)
+    .first()
+  if (recent.by_email >= 5 || recent.by_ip >= 20) throw new HttpError(429, 'pin_locked')
+
+  const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()
+  const { results: kids } = user
+    ? await env.DB.prepare('SELECT id, name, grade, avatar, pin_hash FROM profiles WHERE user_id = ? AND pin_hash IS NOT NULL').bind(user.id).all()
+    : { results: [] }
+  let match = null
+  for (const k of kids) if ((await pinHash(env, k.id, pin)) === k.pin_hash) match = k
+  if (!match) {
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO pin_failures (email, ip, created_at) VALUES (?, ?, ?)').bind(email, ip, t),
+      env.DB.prepare('DELETE FROM pin_failures WHERE created_at < ?').bind(t - DAY),
+    ])
+    // same answer whether the email exists or not
+    throw new HttpError(400, 'pin_wrong')
+  }
+  const setCookie = await startSession(request, env, user.id, match.id)
+  return json({ ok: true, profile: { id: match.id, name: match.name, grade: match.grade, avatar: match.avatar } }, 200, { 'Set-Cookie': setCookie })
 }
 
 async function upsertUser(env, { email, name = null, googleSub = null }) {
