@@ -1,0 +1,44 @@
+# 写华文 (xiehuawen)
+
+## What it is
+A web app for Singapore primary school students to practise writing Chinese words
+(华文听写). The student picks a level, hears the word, sees its pinyin, and writes
+the whole word freely by hand (finger, stylus or mouse) in a row of 田字格 cells —
+nothing is corrected while writing. On "写好了" each character is graded against
+its reference strokes: right / wrong stroke order / written wrong, with notes like
+"第 3 笔笔顺不对" or "漏了第 5 笔", and a side-by-side of the child's ink and the model answer.
+
+## Target users
+- P1–P6 students in Singapore taking Chinese Language (CL)
+- Parents running spelling/听写 practice at home
+
+## Goals
+1. Dictation practice built from the vocabulary that actually appears in school exams.
+2. Feedback down to the stroke ("「是」第 1 笔写错"), not just right/wrong.
+3. Work well on an iPad / phone with a finger.
+
+## Word bank
+`data/words.json`: 1,181 words with pinyin, an English gloss and an exam example sentence.
+- P2–P6: mined from 411 CL exam papers on sgexamhub.com (OCR in
+  `PrimarySchoolExamPapers/data/ocr`). A word is placed in the lowest grade where enough
+  of that grade's papers use it (see `scripts/build_dataset.py`).
+- P1: there are no P1 papers in the corpus, so `data/p1-core.txt` is a hand-picked list.
+- Rebuild: `python scripts/extract_vocab.py && python scripts/build_dataset.py`
+  (needs `jieba`, `pypinyin`; and `data/raw/cedict.txt` from CC-CEDICT for English glosses).
+
+## Stack
+Vite + React. Stroke data from hanzi-writer-data (jsDelivr); grading is our own
+(`src/lib/grade.js`: per-stroke shape/direction with a loose position check after fitting
+the character to the reference box; in-order reading first, then stroke matching + LIS for
+stroke order). Deliberately lenient: look-alikes such as 人/入 or 己/已 can pass. Hanzi Writer is only used for the stroke-order animation. Progress is stored
+in localStorage for now.
+
+## Audio
+`scripts/gen-tts.mjs` pre-generates Azure neural TTS clips (zh-CN-XiaoxiaoNeural) for every
+word and example sentence into `public/audio/` (2,328 clips, ~17k characters — inside the
+free tier). It goes through the xiaohua TTS worker (proxy URL + app token) or straight to
+Azure; credentials live in the gitignored `scripts/tts.local.json`. Clips are re-encoded to 48 kbps mono with ffmpeg (~40 MB total). Mispronounced words can
+be forced syllable-by-syllable via `data/tts-overrides.json`, then redone with `ONLY=… FORCE=1`.
+The site serves them as static files and never calls Azure, so the key never leaves
+the build machine and there is no endpoint to abuse. Without clips the app falls
+back to the browser's speechSynthesis.

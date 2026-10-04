@@ -1,0 +1,20 @@
+# Changelog
+
+## 0.2.1 — 2026-10-04
+- Grading is much more forgiving of messy handwriting: each stroke is judged on its own shape and direction with only a loose position check, after stretching the character to fit; strokes are first read in the order written. Stroke order, reversed and missing strokes are still caught.
+- "判得不对？复制笔迹" link on the feedback card copies the raw strokes for tuning.
+- Phones: no more text-selection / Copy-Look Up callout while writing; no double-tap zoom on buttons.
+- Bigger writing pad on phones: the pad picks whichever arrangement gives the largest cells (2 characters stack vertically in portrait, 2×2 for 3–4); landscape puts prompt and buttons in a left column so the pad gets the full height.
+
+## 0.2.0 — 2026-10-04
+- Free writing: write the whole word in one pad (one 田字格 per character, 2×2 on small screens); no correction while writing; undo / clear / 偷看 / 不会写.
+- Graded on submit, per character: 对 / 笔顺错 / 写错, with notes on wrong, missing, extra, out-of-order and reversed strokes, and a side-by-side of the child's ink and the model answer with problem strokes numbered.
+- Azure neural voice clips for words and example sentences (pre-generated; falls back to browser TTS).
+
+## 0.1.0 — 2026-10-04
+- First version: P1–P6 / mix / 错词本 dictation practice, 10 words per set.
+- Pinyin with tone marks and read-aloud for each word and its example sentence.
+- 田字格 handwriting pad with stroke-by-stroke checking, hint, give-up with stroke animation.
+- 听写 (no outline) and 描红 (trace) modes.
+- Results page: score, stars, which strokes were wrong, stroke-order replay for any character.
+- Wrong words go into a local 错词本 and leave after two perfect writes in a row.

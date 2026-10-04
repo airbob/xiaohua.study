@@ -1,0 +1,8 @@
+{
+  "_comment": "Copy to tts.local.json (gitignored). Fill EITHER the proxy pair OR the Azure key.",
+  "proxyUrl": "https://xiaohua-tts.YOUR-SUBDOMAIN.workers.dev/v1/tts",
+  "proxyToken": "",
+  "azureKey": "",
+  "azureRegion": "southeastasia",
+  "voice": "zh-CN-XiaoxiaoNeural"
+}

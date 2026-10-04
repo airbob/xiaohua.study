@@ -1,0 +1,6 @@
+node_modules
+dist
+data/raw/cedict.txt
+__pycache__
+.DS_Store
+scripts/tts.local.json
