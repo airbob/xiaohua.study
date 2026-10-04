@@ -94,12 +94,16 @@ def best_example(w, examples):
 p1 = [l.strip() for l in open(ROOT / "data/p1-core.txt", encoding="utf-8") if l.strip() and not l.startswith("#")]
 p1_set = set(p1)
 
+# hand-proofread overrides: OCR garbles characters the coverage check can't catch
+# (哭→只 passes because 只 is a common single). null = no example for that word.
+example_fixes = json.load(open(ROOT / "data/example-fixes.json", encoding="utf-8"))["words"]
+
 def entry(w, grade, freq=None, source="exam"):
     v = stats["words"].get(w, {"cl": {}, "examples": []})
     e = {"word": w, "pinyin": py(w), "grade": grade, "source": source}
     if w in gloss:
         e["en"] = gloss[w]
-    ex = best_example(w, v["examples"])
+    ex = example_fixes[w]["example"] if w in example_fixes else best_example(w, v["examples"])
     if ex:
         e["example"] = ex
     e["papers"] = {g: v["cl"][g] for g in GRADES if g in v["cl"]}

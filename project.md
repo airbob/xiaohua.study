@@ -17,6 +17,12 @@ its reference strokes: right / wrong stroke order / written wrong, with notes li
 2. Feedback down to the stroke ("「是」第 1 笔写错"), not just right/wrong.
 3. Work well on an iPad / phone with a finger.
 
+## Design
+"汉字岛" (designer mock, 2026-10-04): each grade is an island, every ~10 words a level with
+1–3 stars (`src/lib/levels.js`), 复习营地 for the 错词本, mascot 墨墨. Tokens and layout live in
+`src/styles.css`; desktop/iPad use the mock's two columns, phones a single column with the map
+as a zigzag.
+
 ## Word bank
 `data/words.json`: 1,181 words with pinyin, an English gloss and an exam example sentence.
 - P2–P6: mined from 411 CL exam papers on sgexamhub.com (OCR in

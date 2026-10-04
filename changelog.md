@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0 — 2026-10-04
+- New 汉字岛 design (from the designer's mock): island map home, wooden 田字格 frames, 墨墨 the ink-drop guide, ZCOOL KuaiLe display type.
+- Levels: each grade is cut into levels of ~10 words (most frequent first); finishing a level earns 1–3 stars (3 = at most one word wrong). Islands show progress, "你在这里", and locks above the child's grade (still playable).
+- 今日任务 (10 words a day opens the chest), 随机探险 (mixed P1–P6).
+- Writing: 10-dot level track, 连对 streak, trace mode shows "第 n / N 笔" and an orange dot where the next stroke starts; hint costs a star.
+- Per-word result: ✓ / ! / × on each character, problem strokes tinted and numbered on the model answer, word stars, "再写一次" (practice only).
+- Level complete screen: stars, words right, best streak, time, words sent to the camp.
+- 复习营地 replaces the 错词本 list: cards with the wrong character marked and why, 2-dot progress back to the island, grade filter, "本周已回岛", review 10 at a time in trace or dictation.
+- Server: level stars, mistake reasons and cleared-at are stored per child (migration 0003).
+- Home 玩法 card: the 自动读词 / 例句 / 英文意思 chips are now full-width rows with a one-line hint and a large 开/关 pill switch (green with ✓ when on), per the designer's revision. Whole row is tappable; `role="switch"` + `aria-checked`.
+- Practice page fix (two-column layout on tablets/laptops/landscape): the page is now exactly one screen tall, 撤销 / 写好了 stay pinned at the bottom of the left column, and the word card / 例句 / tip scroll inside that column when they don't fit. Previously a long left column (e.g. with 英文意思 on) pushed the buttons off-screen, and swiping on the writing cells couldn't scroll the page. Writing cells now reserve ~110px for the hint and 听写/描红 switch so they don't push it off-screen.
+- Example sentences proofread: the auto-picked 例句 come from OCR'd exam papers and many had wrong characters (e.g. 想起妈妈就只了起来 → 就哭了起来, 肚子狗了 → 饱了, 几关牛奶 → 几盒牛奶). 130 corrected, 104 dropped (fragments / exam instructions / word used in the wrong sense); 1042 words keep an example. Fixes live in `data/example-fixes.json` and are applied by `scripts/build_dataset.py`, so a rebuild keeps them.
+- Sentence audio regenerated for the proofread examples (130 new clips, 104 removed with their examples); `audio-index.json` updated.
+- Bug fix: the 听写挑战 / 描红热身 switch on the practice page let a child flip to 描红 mid-dictation and see the answer as trace strokes. The mode is now fixed when a session starts (shown as a read-only tag); change it on the home / review screen before starting.
+- Results screen fix: after 写好了 / 不会写, the left column (answer card + 这个词的成绩 + 墨墨) was cut off above 下一个词 because the column was a fixed-height scroll area. The results view now scrolls as a normal page; while writing, a clipped left column fades out at the bottom (until scrolled to the end) instead of cutting a card in half.
+
 ## 0.5.0 — 2026-10-04
 - Child sign-in: parents set a 6-digit PIN per child; a child signs in with the parent's email + their PIN and stays signed in on that device for 6 months (renewed with use). Wrong PINs are rate-limited.
 - Child sessions only see and practise their own profile — no switching, editing or deleting.

@@ -124,7 +124,7 @@ export async function updateProfile(request, env, user, id) {
 export async function deleteProfile(env, user, id) {
   parentOnly(user)
   await ownProfile(env, user, id)
-  await env.DB.batch(['attempts', 'sets', 'progress', 'sessions'].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE profile_id = ?`).bind(id)).concat(
+  await env.DB.batch(['attempts', 'sets', 'progress', 'levels', 'sessions'].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE profile_id = ?`).bind(id)).concat(
     env.DB.prepare('DELETE FROM profiles WHERE id = ?').bind(id),
   ))
   return json({ ok: true })
@@ -133,25 +133,37 @@ export async function deleteProfile(env, user, id) {
 /** 错词本 + how often each word has been seen (the app uses it to pick fresh words). */
 export async function getProgress(env, user, id) {
   await ownProfile(env, user, id)
-  const { results } = await env.DB.prepare('SELECT word, seen, wrong, streak, in_book, last_at FROM progress WHERE profile_id = ?').bind(id).all()
+  const { results } = await env.DB.prepare(
+    'SELECT word, seen, wrong, streak, in_book, last_at, bad, note, cleared_at FROM progress WHERE profile_id = ?',
+  )
+    .bind(id)
+    .all()
   const mistakes = {}
   const seen = {}
+  const cleared = []
   for (const r of results) {
     seen[r.word] = r.seen
-    if (r.in_book) mistakes[r.word] = { count: r.wrong, streak: r.streak, last: r.last_at }
+    if (r.in_book) mistakes[r.word] = { count: r.wrong, streak: r.streak, last: r.last_at, bad: r.bad || '', note: r.note || '' }
+    else if (r.cleared_at && r.cleared_at > now() - 8 * 86400_000) cleared.push({ word: r.word, t: r.cleared_at })
   }
+  const levels = {}
+  for (const l of (await env.DB.prepare('SELECT grade, level, stars, correct, n FROM levels WHERE profile_id = ?').bind(id).all()).results)
+    (levels[l.grade] ||= {})[l.level] = { stars: l.stars, correct: l.correct, n: l.n }
   const history = (
     await env.DB.prepare('SELECT created_at AS t, score, source, n FROM sets WHERE profile_id = ? ORDER BY created_at DESC LIMIT 50').bind(id).all()
   ).results
-  return json({ mistakes, seen, history })
+  return json({ mistakes, seen, history, levels, cleared })
 }
 
 // A word enters the 错词本 when written imperfectly and leaves after two perfect writes in a row.
 const UPSERT_PROGRESS = `
-INSERT INTO progress (profile_id, word, seen, wrong, streak, in_book, last_at, due_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
+INSERT INTO progress (profile_id, word, seen, wrong, streak, in_book, last_at, due_at, bad, note)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8, ?9)
 ON CONFLICT (profile_id, word) DO UPDATE SET
   seen    = seen + excluded.seen,
+  bad     = CASE WHEN excluded.wrong > 0 THEN excluded.bad ELSE bad END,
+  note    = CASE WHEN excluded.wrong > 0 THEN excluded.note ELSE note END,
+  cleared_at = CASE WHEN excluded.wrong = 0 AND in_book = 1 AND streak + excluded.streak >= 2 THEN excluded.last_at ELSE cleared_at END,
   wrong   = wrong + excluded.wrong,
   in_book = CASE WHEN excluded.wrong > 0 THEN 1
                  WHEN in_book = 1 AND streak + excluded.streak >= 2 THEN 0
@@ -184,7 +196,22 @@ export async function saveSet(request, env, user, id) {
         setId, id, r.word, Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))), perfect,
         r.detail ? JSON.stringify(r.detail).slice(0, 2000) : null, t,
       ),
-      env.DB.prepare(UPSERT_PROGRESS).bind(id, r.word, 1, perfect ? 0 : 1, perfect, perfect ? 0 : 1, t),
+      env.DB.prepare(UPSERT_PROGRESS).bind(
+        id, r.word, 1, perfect ? 0 : 1, perfect, perfect ? 0 : 1, t,
+        perfect ? null : String(r.bad || '').slice(0, 20), perfect ? null : String(r.note || '').slice(0, 80),
+      ),
+    )
+  }
+  const lv = body.level
+  if (lv && /^P[1-6]$/.test(lv.grade) && Number.isInteger(lv.level) && lv.level > 0 && lv.level < 100) {
+    const correct = results.filter((r) => r.perfect).length
+    stmts.push(
+      env.DB.prepare(
+        `INSERT INTO levels (profile_id, grade, level, stars, correct, n, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT (profile_id, grade, level) DO UPDATE SET
+           correct = CASE WHEN excluded.stars > stars OR (excluded.stars = stars AND excluded.correct > correct) THEN excluded.correct ELSE correct END,
+           stars = MAX(stars, excluded.stars), n = excluded.n, updated_at = excluded.updated_at`,
+      ).bind(id, lv.grade, lv.level, Math.max(1, Math.min(3, Number(lv.stars) || 1)), correct, results.length, t),
     )
   }
   await env.DB.batch(stmts)
@@ -211,6 +238,20 @@ export async function importLocal(request, env, user, id) {
          in_book = MAX(in_book, excluded.in_book), last_at = MAX(COALESCE(last_at, 0), excluded.last_at)`,
     ).bind(id, w, n, m ? Math.max(1, Math.round(Number(m.count) || 1)) : 0, m ? Math.round(Number(m.streak) || 0) : 0, m ? 1 : 0, last)
   })
+  const levels = body.levels && typeof body.levels === 'object' ? body.levels : {}
+  for (const [grade, byLevel] of Object.entries(levels)) {
+    if (!/^P[1-6]$/.test(grade) || !byLevel || typeof byLevel !== 'object') continue
+    for (const [lvl, v] of Object.entries(byLevel)) {
+      const level = Number(lvl)
+      if (!Number.isInteger(level) || level < 1 || level > 99) continue
+      stmts.push(
+        env.DB.prepare(
+          `INSERT INTO levels (profile_id, grade, level, stars, correct, n, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (profile_id, grade, level) DO UPDATE SET stars = MAX(stars, excluded.stars)`,
+        ).bind(id, grade, level, Math.max(1, Math.min(3, Number(v?.stars) || 1)), Math.max(0, Number(v?.correct) || 0), Math.max(1, Number(v?.n) || 10), now()),
+      )
+    }
+  }
   for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100))
   return json({ ok: true, imported: words.length })
 }
@@ -219,7 +260,7 @@ export async function deleteAccount(env, user) {
   parentOnly(user)
   const ids = (await env.DB.prepare('SELECT id FROM profiles WHERE user_id = ?').bind(user.id).all()).results.map((r) => r.id)
   const stmts = []
-  for (const pid of ids) for (const t of ['attempts', 'sets', 'progress']) stmts.push(env.DB.prepare(`DELETE FROM ${t} WHERE profile_id = ?`).bind(pid))
+  for (const pid of ids) for (const t of ['attempts', 'sets', 'progress', 'levels']) stmts.push(env.DB.prepare(`DELETE FROM ${t} WHERE profile_id = ?`).bind(pid))
   stmts.push(
     env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM profiles WHERE user_id = ?').bind(user.id),

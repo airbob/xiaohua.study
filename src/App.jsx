@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import Home from './components/Home.jsx'
 import Practice from './components/Practice.jsx'
-import Results from './components/Results.jsx'
-import { buildSet, LEVELS } from './lib/bank.js'
-import { loadPrefs, savePrefs } from './lib/storage.js'
+import LevelComplete from './components/LevelComplete.jsx'
+import ReviewCamp from './components/ReviewCamp.jsx'
+import { buildSet } from './lib/bank.js'
+import { GRADES, levelWords, levelCount, gradeStatus } from './lib/levels.js'
+import { loadPrefs, savePrefs, loadLevels } from './lib/storage.js'
 import { useAccount, initAccount, showNotice } from './lib/account.js'
 import { LoginModal, ProfileModal, AccountSheet, ChildSheet } from './components/AccountUI.jsx'
 
@@ -50,20 +52,34 @@ export default function App() {
     savePrefs(next)
   }
 
-  const start = (source, words) => {
-    const list = words || buildSet(source)
+  const go = (next) => {
+    setScreen(next)
+    window.scrollTo(0, 0)
+  }
+
+  /** kind: 'level' (with level = { grade, level }) | 'mix' | 'review' (with words) */
+  const play = (kind, { level = null, words = null } = {}) => {
+    const list = words || (kind === 'level' ? levelWords(level.grade, level.level) : buildSet('mix'))
     if (!list.length) return
-    setScreen({ name: 'practice', source, words: list, id: Date.now() })
+    go({ name: 'practice', kind, level, words: list, id: Date.now() })
+  }
+  const startLevel = (grade, level) => play('level', { level: { grade, level } })
+  const currentLevel = (grade) => gradeStatus(grade, loadLevels()[grade]).current
+
+  /** After level n: n+1 in the same grade, else the next grade's current level, else home. */
+  const nextLevel = (lv) => {
+    if (lv.level < levelCount(lv.grade)) return () => startLevel(lv.grade, lv.level + 1)
+    const g = GRADES[GRADES.indexOf(lv.grade) + 1]
+    return g ? () => startLevel(g, currentLevel(g)) : null
   }
 
   // Deep link from the word-list pages: /?start=P3 (or ?start=mix) jumps straight into a set.
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get('start')
-    const source = q && (q.toLowerCase() === 'mix' ? 'mix' : LEVELS.find((l) => l === q.toUpperCase()))
-    if (source) {
-      window.history.replaceState(null, '', window.location.pathname)
-      start(source)
-    }
+    const q = (new URLSearchParams(window.location.search).get('start') || '').toUpperCase()
+    if (!q) return
+    window.history.replaceState(null, '', window.location.pathname)
+    if (q === 'MIX') play('mix')
+    else if (GRADES.includes(q)) startLevel(q, currentLevel(q))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const modals = (
@@ -85,34 +101,51 @@ export default function App() {
     </>
   )
 
+  const home = () => go({ name: 'home' })
+
   if (screen.name === 'practice')
     return (
       <Practice
         key={screen.id}
         words={screen.words}
+        title={screen.kind === 'level' ? `${screen.level.grade} · 第 ${screen.level.level} 关` : screen.kind === 'review' ? '复习营地' : '随机探险'}
         prefs={prefs}
-        onPrefs={updatePrefs}
-        onQuit={() => setScreen({ name: 'home' })}
-        onFinish={(results) => setScreen({ name: 'results', source: screen.source, results })}
+        onQuit={screen.kind === 'review' ? () => go({ name: 'review' }) : home}
+        onFinish={(results, stats) => go({ name: 'complete', kind: screen.kind, level: screen.level, words: screen.words, results, stats })}
       />
     )
-  if (screen.name === 'results')
+  if (screen.name === 'complete')
     return (
-      <Results
+      <LevelComplete
+        key={screen.results.length + screen.stats.ms}
         results={screen.results}
-        source={screen.source}
-        onAgain={() => start(screen.source)}
-        onRetry={(words) => start(screen.source, words)}
-        onHome={() => setScreen({ name: 'home' })}
+        kind={screen.kind}
+        level={screen.level}
+        stats={screen.stats}
+        onHome={home}
+        onNext={screen.kind === 'level' ? nextLevel(screen.level) : null}
+        onAgain={() => (screen.kind === 'review' ? go({ name: 'review' }) : play('mix'))}
+        onReview={(wrong) => play('review', { words: wrong.map(({ chars, ...w }) => w) })}
         onLogin={() => {
-          setScreen({ name: 'home' })
+          home()
           setModal('login')
         }}
       />
     )
+  if (screen.name === 'review')
+    return (
+      <ReviewCamp prefs={prefs} onPrefs={updatePrefs} onBack={home} onStart={(words) => play('review', { words })} />
+    )
   return (
     <>
-      <Home prefs={prefs} onPrefs={updatePrefs} onStart={start} onAccount={setModal} />
+      <Home
+        prefs={prefs}
+        onPrefs={updatePrefs}
+        onStartLevel={startLevel}
+        onMix={() => play('mix')}
+        onReview={() => go({ name: 'review' })}
+        onAccount={setModal}
+      />
       {modals}
     </>
   )

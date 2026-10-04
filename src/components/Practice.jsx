@@ -1,103 +1,142 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import FreePad from './FreePad.jsx'
-import CharCompare from './CharCompare.jsx'
+import FreePad, { chrome, frameGap } from './FreePad.jsx'
+import { ResultFrame } from './CharCompare.jsx'
 import StrokeReplay from './StrokeReplay.jsx'
+import { MascotSays } from './Mascot.jsx'
+import { Speaker, Back, Undo, Eraser, Check, Chest, Stars } from './Icons.jsx'
 import { speakWord, speakSentence, canSpeak } from '../lib/speech.js'
 import { loadChar, preloadWord } from '../lib/chardata.js'
 import { gradeChar } from '../lib/grade.js'
-import { isPerfect, charNotes, STATUS_LABEL } from '../lib/score.js'
+import { isPerfect, charNotes, wordScore } from '../lib/score.js'
 
-const GAP = 0.06
-// keep in sync with the side-by-side layout media query in styles.css
-const SIDE_LAYOUT = '(orientation: landscape) and (min-width: 640px)'
+// keep in sync with the two-column media query in styles.css
+const SIDE_LAYOUT = '(min-width: 900px), (orientation: landscape) and (min-width: 640px)'
 
-// Biggest square cell that fits the space left for the pad: try every arrangement
-// (one row, one column, 2×2 …) and keep the one with the largest cells. On a phone in
-// portrait that stacks the characters vertically; in landscape it lays them out in a row.
-function usePadLayout(area, tools, footer, n, deps) {
+/** Biggest framed cells that fit the space left for the pad, trying every arrangement. */
+function usePadLayout(area, below, n, deps) {
   const [layout, setLayout] = useState({ cell: 200, cols: n })
   useLayoutEffect(() => {
     const measure = () => {
       const el = area.current
       if (!el) return
-      const side = window.matchMedia(SIDE_LAYOUT).matches // landscape: pad has its own column
+      const side = window.matchMedia(SIDE_LAYOUT).matches
       const top = el.getBoundingClientRect().top + window.scrollY
       const vh = window.visualViewport?.height || window.innerHeight
-      const below = side ? 12 : (tools.current?.offsetHeight || 0) + (footer.current?.offsetHeight || 0) + 28
       const W = el.clientWidth
-      const H = vh - top - below
-      let best = { cell: 0, cols: n }
-      for (let cols = 1; cols <= n; cols++) {
+      // side layout: leave room under the cells for the hint line + 听写/描红 switch (~110px)
+      const H = vh - top - (side ? 110 : (below.current?.offsetHeight || 0) + 24)
+      // exact footprint of the framed cells (see FreePad: chrome, gaps, 8px shadow, 14px badge room)
+      const fits = (cell, cols) => {
         const rows = Math.ceil(n / cols)
-        const cell = Math.min(W / (cols + (cols - 1) * GAP), H / (rows + (rows - 1) * GAP))
-        if (cell > best.cell + 2) best = { cell, cols }
+        const outer = cell + 2 * chrome(cell)
+        const w = cols * outer + (cols - 1) * frameGap(cell)
+        const h = 14 + rows * (outer + 8) + (rows - 1) * (frameGap(cell) + 8)
+        return w <= W && h <= H
       }
-      setLayout({ cols: best.cols, cell: Math.floor(Math.max(110, Math.min(440, best.cell))) })
+      let best = { cell: 100, cols: Math.min(n, 2) }
+      for (let cols = 1; cols <= n; cols++) {
+        let cell = 380
+        while (cell > 100 && !fits(cell, cols)) cell -= 2
+        if (cell > best.cell) best = { cell, cols }
+      }
+      setLayout(best)
     }
     measure()
     window.addEventListener('resize', measure)
     window.visualViewport?.addEventListener('resize', measure)
-    window.addEventListener('orientationchange', measure)
     return () => {
       window.removeEventListener('resize', measure)
       window.visualViewport?.removeEventListener('resize', measure)
-      window.removeEventListener('orientationchange', measure)
     }
   }, [n, ...deps]) // eslint-disable-line react-hooks/exhaustive-deps
   return layout
 }
 
-export default function Practice({ words, prefs, onPrefs, onQuit, onFinish }) {
+const charStars = (c) => (c.skipped || c.status === 'blank' ? 0 : c.status === 'ok' ? (c.hinted ? 2 : 3) : c.status === 'order' ? 2 : c.status === 'unavailable' ? 3 : 1)
+const wordStars = (chars) => {
+  const s = wordScore(chars)
+  return isPerfect(chars) ? 3 : s >= 0.6 ? 2 : s > 0 ? 1 : 0
+}
+const verdictOf = (c) => (c.status === 'ok' || c.status === 'unavailable' ? (c.hinted ? 'order' : 'ok') : c.status === 'order' ? 'order' : 'wrong')
+const CHAR_LABEL = { ok: '写对了', order: '差一点', wrong: '要再练', blank: '没写出来' }
+
+const TIPS = {
+  dictation: ['听一听，想一想，再把整个词写在格子里。', '一格写一个字，写完按「写好了」。', '不确定的话，可以按「提示」偷看一下。'],
+  trace: ['跟着浅色的字写，橙色小点是下一笔的起点。', '描红热身：一笔一笔慢慢写。'],
+}
+
+/**
+ * One set of words. title: e.g. 'P3 · 第 4 关'. onFinish(results, { bestStreak, ms }).
+ */
+export default function Practice({ words, title, prefs, onQuit, onFinish }) {
   const [wi, setWi] = useState(0)
   const [phase, setPhase] = useState('writing') // writing | grading | feedback
   const [chars, setChars] = useState([])
   const [finished, setFinished] = useState([])
+  const [retrying, setRetrying] = useState(false)
   const [charData, setCharData] = useState([])
   const [peek, setPeek] = useState(null)
   const [hinted, setHinted] = useState(false)
   const [replay, setReplay] = useState(null)
   const [nudge, setNudge] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [streak, setStreak] = useState(0)
+  const [bestStreak, setBestStreak] = useState(0)
+  const [padKey, setPadKey] = useState(0)
+  const startedAt = useRef(Date.now())
   const pad = useRef(null)
   const area = useRef(null)
-  const tools = useRef(null)
-  const footer = useRef(null)
+  const below = useRef(null)
+  const side = useRef(null)
+  const [sideClipped, setSideClipped] = useState(false)
 
   const item = words[wi]
   const glyphs = [...item.word]
-  const trace = prefs.mode === 'trace'
-  const { cell, cols } = usePadLayout(area, tools, footer, glyphs.length, [phase === 'feedback', prefs.showExample, prefs.showEnglish])
+  // Mode is fixed for the whole session: switching 听写 → 描红 mid-word would show the
+  // answer as trace strokes. Change it on the home / review screen before starting.
+  const [sessionMode] = useState(prefs.mode)
+  const trace = sessionMode === 'trace'
+  const { cell, cols } = usePadLayout(area, below, glyphs.length, [phase === 'feedback', prefs.showExample, prefs.showEnglish])
+
+  // While writing, the side column is a fixed-height scroll area (so 写好了 stays on
+  // screen). When its content doesn't fit, fade the bottom edge instead of cutting a
+  // card in half, until the child scrolls to the end.
+  useLayoutEffect(() => {
+    const el = side.current
+    if (!el) return
+    const check = () => setSideClipped(el.scrollTop + el.clientHeight < el.scrollHeight - 2)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    for (const c of el.children) ro.observe(c)
+    el.addEventListener('scroll', check, { passive: true })
+    return () => {
+      ro.disconnect()
+      el.removeEventListener('scroll', check)
+    }
+  }, [wi, phase])
 
   useEffect(() => {
     let live = true
     setCharData([])
     Promise.all(glyphs.map((g) => loadChar(g).catch(() => null))).then((d) => live && setCharData(d))
     if (words[wi + 1]) preloadWord(words[wi + 1].word)
-    const t = prefs.autoSpeak ? setTimeout(() => speakWord(item.word), 250) : null
+    const t = prefs.autoSpeak ? setTimeout(() => speakWord(item.word), 300) : null
     return () => {
       live = false
       clearTimeout(t)
     }
   }, [wi]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const finishWord = (results) => {
-    setChars(results)
-    setFinished((f) => [...f, { ...item, chars: results }])
-    setPhase('feedback')
-    setCopied(false)
-    if (isPerfect(results)) speakWord('对了')
-  }
-
   const submit = async () => {
     const per = pad.current.getStrokes()
     if (per.every((s) => !s.length)) {
       setNudge(true)
-      setTimeout(() => setNudge(false), 1500)
+      setTimeout(() => setNudge(false), 1800)
       return
     }
     setPhase('grading')
     const data = await Promise.all(glyphs.map((g) => loadChar(g).catch(() => null)))
-    finishWord(
+    show(
       glyphs.map((g, i) => {
         if (!data[i]) return { char: g, status: 'unavailable', strokes: per[i] }
         const grade = gradeChar(data[i], per[i])
@@ -108,7 +147,21 @@ export default function Practice({ words, prefs, onPrefs, onQuit, onFinish }) {
 
   const giveUp = () => {
     const per = pad.current?.getStrokes() || glyphs.map(() => [])
-    finishWord(glyphs.map((g, i) => ({ char: g, status: 'blank', skipped: true, strokes: per[i] })))
+    show(glyphs.map((g, i) => ({ char: g, status: 'blank', skipped: true, strokes: per[i] })))
+  }
+
+  // a retry is practice only: the first attempt is what counts
+  const show = (results) => {
+    setChars(results)
+    setPhase('feedback')
+    const perfect = isPerfect(results)
+    if (!retrying) {
+      setFinished((f) => [...f, { ...item, chars: results }])
+      const s = perfect ? streak + 1 : 0
+      setStreak(s)
+      setBestStreak((b) => Math.max(b, s))
+    }
+    if (perfect) speakWord('对了')
   }
 
   const doPeek = () => {
@@ -118,165 +171,197 @@ export default function Practice({ words, prefs, onPrefs, onQuit, onFinish }) {
     setTimeout(() => setPeek(null), 1500)
   }
 
-  const advance = () => {
-    if (wi + 1 >= words.length) return onFinish(finished)
+  const next = () => {
+    if (wi + 1 >= words.length) return onFinish(finished, { bestStreak, ms: Date.now() - startedAt.current })
     setWi(wi + 1)
     setChars([])
     setHinted(false)
+    setRetrying(false)
+    setPadKey((k) => k + 1)
     setPhase('writing')
   }
 
-  const perfect = phase === 'feedback' && isPerfect(chars)
+  const retry = () => {
+    setRetrying(true)
+    setHinted(false)
+    setChars([])
+    setPadKey((k) => k + 1)
+    setPhase('writing')
+  }
+
+  const feedback = phase === 'feedback'
+  const perfect = feedback && isPerfect(chars)
   const sentence = item.example
-    ? phase === 'feedback'
+    ? feedback
       ? item.example.replace(/（[　 ]+）/, item.word)
       : item.example
     : null
+  const firstBad = chars.find((c) => !(c.status === 'ok' && !c.hinted) && c.status !== 'unavailable')
+  const results = finished // first attempts so far
+  const tip = TIPS[trace ? 'trace' : 'dictation'][wi % TIPS[trace ? 'trace' : 'dictation'].length]
 
   return (
-    <main className="practice" onContextMenu={(e) => e.preventDefault()}>
-      <header className="topbar">
-        <button className="btn ghost" onClick={onQuit} aria-label="退出">✕</button>
-        <div className="progress" aria-label={`第 ${wi + 1} 个，共 ${words.length} 个`}>
-          <div className="progress-fill" style={{ width: `${((wi + (phase === 'feedback' ? 1 : 0)) / words.length) * 100}%` }} />
-        </div>
-        <span className="count">{wi + 1}/{words.length}</span>
+    <div className={`play-page ${feedback ? 'is-feedback' : ''}`}>
+      <header className="play-head">
+        <button className="btn-chunky back" onClick={onQuit} aria-label="回到地图">
+          <Back /> <span className="hide-sm">地图</span>
+        </button>
+        <div className="level-badge display">{title}</div>
+        <ol className="track" aria-label={`第 ${wi + 1} 个词，共 ${words.length} 个`}>
+          {words.map((w, i) => {
+            const r = results[i]
+            const cls = r ? (isPerfect(r.chars) ? 'done' : 'miss') : i === wi ? 'now' : ''
+            return <li key={i} className={cls} />
+          })}
+          <li className="track-chest" aria-hidden="true"><Chest size={34} /></li>
+        </ol>
+        <div className="streak">连对 ×{streak}</div>
       </header>
 
-      <div className={`stage ${phase === 'feedback' ? 'is-feedback' : ''}`}>
-      <section className="prompt">
-        <div className="pinyin-line">
-          {item.pinyin.map((p, i) => (
-            <span key={i} className="py">{p}</span>
-          ))}
-        </div>
-        {phase === 'feedback' && <div className="answer-word">{item.word}</div>}
-        <div className="prompt-tools">
-          {canSpeak() ? (
-            <>
-              <button className="btn sound" onClick={() => speakWord(item.word)}>🔊 读词语</button>
-              {item.example && (
-                <button className="btn sound soft" onClick={() => speakSentence(item)}>🔊 读句子</button>
+      <div className="play-body">
+        <section className={`play-side ${sideClipped ? 'clipped' : ''}`} ref={side}>
+          <div className="word-card">
+            <div className="word-card-inner">
+              <div className="pinyin">{item.pinyin.join(' ')}</div>
+              {feedback && <div className="answer kai">{item.word}</div>}
+              {canSpeak() && (
+                <div className="listen">
+                  <button className="btn-chunky orange" onClick={() => speakWord(item.word)}><Speaker /> {feedback ? '词语' : '再听词语'}</button>
+                  {item.example && (
+                    <button className="btn-chunky" onClick={() => speakSentence(item)}><Speaker /> {feedback ? '句子' : '听句子'}</button>
+                  )}
+                </div>
               )}
+            </div>
+          </div>
+
+          {!feedback && (prefs.showExample || prefs.showEnglish) && (sentence || item.en) && (
+            <div className="card example-card">
+              {prefs.showExample && sentence && (
+                <>
+                  <div className="label">例句</div>
+                  <p className="sentence">
+                    {sentence.split(/（[　 ]+）/).map((part, i, arr) => (
+                      <span key={i}>
+                        {part}
+                        {i < arr.length - 1 && <span className="blank" style={{ width: `${glyphs.length * 1.6}em` }} />}
+                      </span>
+                    ))}
+                  </p>
+                </>
+              )}
+              {prefs.showEnglish && item.en && <p className="en">{item.en}</p>}
+            </div>
+          )}
+
+          {feedback && (
+            <div className="card word-score">
+              <h2 className="display">这个词的成绩</h2>
+              {chars.map((c, i) => {
+                const v = c.skipped || c.status === 'blank' ? 'blank' : verdictOf(c)
+                const notes = charNotes(c).filter((n) => n !== '全对')
+                return (
+                  <div key={i} className={`score-row ${v}`}>
+                    <span className="score-char kai">{c.char}</span>
+                    <span className="score-text">
+                      <b>{CHAR_LABEL[v]}</b>
+                      <span>{v === 'ok' ? '笔顺正确' : notes.join('，')}</span>
+                    </span>
+                    <Stars n={charStars(c)} />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <div className="grow" />
+
+          <div className="hide-sm">
+            {feedback ? (
+              <MascotSays mood={perfect ? 'happy' : 'worried'} tone="cream">
+                {retrying
+                  ? perfect ? '这次写对啦！' : '再看看动画，多练几次就会了。'
+                  : perfect
+                    ? `全对！${streak >= 2 ? `已经连对 ${streak} 个了！` : '继续加油！'}`
+                    : <>「{item.word}」我帮你放进<b>复习营地</b>了，明天再来救它！</>}
+              </MascotSays>
+            ) : (
+              <MascotSays mood="look">{nudge ? '先在格子里写字哦！' : tip}</MascotSays>
+            )}
+          </div>
+        </section>
+
+        <section className="play-main" ref={area}>
+          {!feedback ? (
+            <>
+              <FreePad
+                key={`${wi}-${padKey}`}
+                ref={pad}
+                glyphs={glyphs}
+                cell={cell}
+                cols={cols}
+                traceData={trace && charData.length ? charData : null}
+                peek={peek}
+              />
+              <p className={`pad-hint ${nudge ? 'nudge' : 'hide-sm'}`}>
+                {nudge ? '先在格子里写字哦！' : trace ? '橙色小点是下一笔的起点 · 写完按「写好了」' : `一格一个字 · 写完${glyphs.length > 1 ? `${glyphs.length}个字` : ''}按「写好了」`}
+              </p>
+              <span className="mode-tag hide-sm">{trace ? '描红热身' : '听写挑战'}</span>
             </>
           ) : (
-            <span className="muted small">这个浏览器不支持朗读</span>
-          )}
-        </div>
-        {prefs.showExample && sentence && <p className="example">{sentence}</p>}
-        {prefs.showEnglish && item.en && <p className="english">{item.en}</p>}
-      </section>
-
-      <section className="write" ref={area}>
-        {phase !== 'feedback' ? (
-          <>
-            <FreePad
-              key={wi}
-              ref={pad}
-              glyphs={glyphs}
-              cell={cell}
-              cols={cols}
-              traceData={trace && charData.length ? charData : null}
-              peek={peek}
-            />
-          </>
-        ) : (
-          <div className={`feedback ${perfect ? 'good' : 'needs'}`}>
-            {perfect ? (
-              <p className="feedback-msg">✓ 全对！</p>
-            ) : (
-              <p className="feedback-msg warn">看看哪里要改</p>
-            )}
-            <div className="feedback-chars">
-              {chars.map((c, i) => (
-                <div key={i} className={`fchar ${c.status}`}>
-                  <div className="fchar-head">
-                    <b className="kai">{c.char}</b>
-                    <span className={`tag ${c.skipped ? 'blank' : c.status}`}>
-                      {c.skipped ? '不会' : STATUS_LABEL[c.status]}
-                    </span>
-                  </div>
-                  <CharCompare
+            <>
+              <div className="result-frames" style={{ gridTemplateColumns: `repeat(${cols}, auto)`, gap: `${frameGap(cell) + 30}px ${frameGap(cell)}px` }}>
+                {chars.map((c, i) => (
+                  <ResultFrame
+                    key={i}
                     char={c.char}
                     data={charData[i]}
                     strokes={c.strokes}
                     result={c.grade}
-                    size={compareSize(area.current?.clientWidth || 320, chars.length)}
+                    verdict={c.skipped || c.status === 'blank' ? 'wrong' : verdictOf(c)}
+                    size={Math.max(100, cell - chrome(cell) + 7)}
                     onReplay={() => setReplay(c.char)}
                   />
-                  {!(c.status === 'ok' && !c.hinted) && (
-                    <ul className="notes">
-                      {charNotes(c).map((n, k) => (
-                        <li key={k}>{n}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
-            </div>
-            <Legend />
-            <button className="link-btn" onClick={() => copySample(item.word, chars).then(() => setCopied(true))}>
-              {copied ? '已复制笔迹，发给我们就能改进批改' : '判得不对？复制笔迹'}
-            </button>
-            <button className="btn primary big" onClick={advance}>
-              {wi + 1 >= words.length ? '看成绩' : '下一个 →'}
-            </button>
-          </div>
-        )}
-      </section>
-
-      {phase !== 'feedback' && (
-        <section className="tools" ref={tools}>
-            <div className="pad-tools">
-            <button className="btn" onClick={() => pad.current?.undo()}>↶ 撤销</button>
-            <button className="btn" onClick={() => pad.current?.clear()}>清除</button>
-            {!trace && <button className="btn" onClick={doPeek}>💡 偷看</button>}
-            <button className="btn" onClick={giveUp}>🙈 不会写</button>
-          </div>
-          <button className="btn primary big submit" onClick={submit} disabled={phase === 'grading'}>
-            {phase === 'grading' ? '批改中…' : '✓ 写好了'}
-          </button>
-          <p className={`muted small center write-hint ${nudge ? 'nudge' : ''}`}>
-            {nudge ? '先在格子里写字哦' : `把整个词写在格子里，一格一个字，写完按「写好了」。`}
-          </p>
+                ))}
+              </div>
+              <div className="card word-stars">
+                <span className="display">本词得分</span>
+                <Stars n={wordStars(chars)} className="big" />
+                {!perfect && firstBad && (
+                  <button className="btn-chunky soft" onClick={retry}>再写一次</button>
+                )}
+              </div>
+              {retrying && <p className="pad-hint">再写一次是练习，不会改变这一关的成绩。</p>}
+            </>
+          )}
         </section>
-      )}
       </div>
 
-      <footer className="mode-switch" ref={footer}>
-        <button className={!trace ? 'on' : ''} onClick={() => onPrefs({ mode: 'dictation' })}>听写</button>
-        <button className={trace ? 'on' : ''} onClick={() => onPrefs({ mode: 'trace' })}>描红</button>
-      </footer>
+      <div className="play-actions" ref={below}>
+        {!feedback ? (
+          <>
+            <div className="tools">
+              <button className="btn-chunky" onClick={() => pad.current?.undo()}><Undo /> 撤销</button>
+              <button className="btn-chunky" onClick={() => pad.current?.clear()}><Eraser /> 擦掉</button>
+              {!trace && (
+                <button className="btn-chunky cream hint-btn" onClick={doPeek}>
+                  提示<span>扣 1 颗星</span>
+                </button>
+              )}
+              <button className={`btn-chunky cream ${trace ? '' : 'show-sm'}`} onClick={giveUp}>不会写</button>
+            </div>
+            <button className="cta green" onClick={submit} disabled={phase === 'grading'}>
+              <Check /> {phase === 'grading' ? '批改中…' : '写好了'}
+            </button>
+            {!trace && <button className="link-btn give-up hide-sm" onClick={giveUp}>不会写，看答案</button>}
+          </>
+        ) : (
+          <button className="cta red" onClick={next}>{wi + 1 >= words.length ? '看成绩' : '下一个词'}</button>
+        )}
+      </div>
 
       {replay && <StrokeReplay char={replay} onClose={() => setReplay(null)} />}
-    </main>
+    </div>
   )
 }
 
-// Thumbnail size on the feedback card: two characters side by side when there's room.
-function compareSize(width, n) {
-  const perRow = width >= 480 ? Math.min(n, 2) : 1
-  return Math.max(64, Math.min(110, Math.floor((width - 40) / perRow / 2.5)))
-}
-
-// Raw strokes of a graded word, so a misjudged answer can be sent back and used to tune grading.
-function copySample(word, chars) {
-  const round = (v) => Math.round(v * 1000) / 1000
-  const sample = {
-    word,
-    at: new Date().toISOString(),
-    chars: chars.map((c) => ({ char: c.char, status: c.status, strokes: (c.strokes || []).map((s) => s.map(([x, y]) => [round(x), round(y)])) })),
-  }
-  const text = JSON.stringify(sample)
-  console.log('[xhw sample]', text)
-  return navigator.clipboard?.writeText(text).catch(() => {}) ?? Promise.resolve()
-}
-
-export function Legend() {
-  return (
-    <p className="legend">
-      <span className="dot ok" />对 <span className="dot order" />笔顺错 <span className="dot backwards" />方向反
-      <span className="dot extra" />写错/漏写
-    </p>
-  )
-}

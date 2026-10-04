@@ -50,26 +50,6 @@ function Modal({ title, onClose, children }) {
   )
 }
 
-/** Header chip: 登录 for guests, the active child for parents. */
-export function AccountChip({ onOpen }) {
-  const a = useAccount()
-  if (a.status === 'loading') return <span className="chip ghost">…</span>
-  if (a.status === 'guest') return <button className="chip" onClick={() => onOpen('login')}>登录</button>
-  const p = a.profiles.find((x) => x.id === a.activeId)
-  return (
-    <button className="chip" onClick={() => onOpen(a.child ? 'child' : p ? 'account' : 'profile-new')}>
-      {p ? (
-        <>
-          <span className="chip-avatar">{p.avatar}</span>
-          {p.name}
-        </>
-      ) : (
-        '添加孩子'
-      )}
-    </button>
-  )
-}
-
 export function LoginModal({ onClose, initialTab = 'parent' }) {
   const [tab, setTab] = useState(initialTab) // parent | child
   const [step, setStep] = useState('choose') // choose | code
