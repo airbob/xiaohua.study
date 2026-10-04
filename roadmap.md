@@ -4,7 +4,7 @@
 - v0.1: pick a level (P1–P6 / mix / 错词本) → sets of 10 words → per-stroke grading → results with stroke-order replays.
 
 ## Next
-- Accounts: save each student's 错词本 and history across devices (Cloudflare D1 + simple login, or parent account with child profiles).
+- Spaced review for the 错词本 and a per-child progress page (accounts are live).
 - Deploy to Cloudflare Pages, pick a domain.
 - Check and correct the word list by hand (some OCR-noisy example sentences, P1 list needs to match the 欢乐伙伴 textbooks).
 - Recorded or neural TTS audio so pronunciation doesn't depend on the device's voices.

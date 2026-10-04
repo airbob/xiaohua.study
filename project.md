@@ -42,3 +42,19 @@ be forced syllable-by-syllable via `data/tts-overrides.json`, then redone with `
 The site serves them as static files and never calls Azure, so the key never leaves
 the build machine and there is no endpoint to abuse. Without clips the app falls
 back to the browser's speechSynthesis.
+
+## Accounts (v0.4)
+Parents sign in (Google or an emailed link / 6-digit code); each parent has up to 6 child
+profiles (nickname, grade, avatar). Guests can still practise; on a parent's first child,
+the device's guest progress is merged in.
+- Hosting: Cloudflare Worker `xiaohua-study` (static `dist/` via Workers Assets + `worker/`
+  for `/api/*`), deployed by Workers Builds on push to main. Config: `wrangler.jsonc`.
+- Data: D1 `xiaohua-study` (schema in `migrations/`): users, sessions, login_tokens,
+  profiles, progress (per child × word: seen / wrong / streak / in 错词本 / due), sets, attempts.
+  Strokes are not stored.
+- Client: `src/lib/account.js` (session + profiles), `src/lib/storage.js` (per-profile local
+  cache + outbox that posts finished sets, retried when offline).
+- Secrets (wrangler secret put): GOOGLE_CLIENT_SECRET, RESEND_API_KEY. Var: GOOGLE_CLIENT_ID.
+- Local dev: `npx wrangler d1 migrations apply xiaohua-study --local`, then `npx wrangler dev`
+  (port 8787) + `npm run dev` (proxies /api). `.dev.vars` has DEV_LOGIN_LINKS=1, which shows
+  the email code on screen instead of sending mail.

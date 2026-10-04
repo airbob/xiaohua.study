@@ -1,0 +1,34 @@
+// xiaohua.study — static app (dist/) + API Worker for accounts.
+// Deployed by Workers Builds on push to main (build: npm run build, deploy: npx wrangler deploy).
+//
+// Secrets (set once, never in this file):
+//   npx wrangler secret put GOOGLE_CLIENT_SECRET
+//   npx wrangler secret put RESEND_API_KEY
+// For local dev put the same keys in .dev.vars (gitignored).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "xiaohua-study",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // only /api/* runs the Worker; every other request is served straight from dist/
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "xiaohua-study",
+      "database_id": "1b9cef1f-cd06-41c2-93b4-a1907c1baad3",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "SITE_URL": "https://xiaohua.study",
+    "GOOGLE_CLIENT_ID": "",
+    "MAIL_FROM": "写华文 <login@xiaohua.study>"
+  },
+  "observability": { "enabled": true }
+}

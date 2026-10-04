@@ -1,54 +1,115 @@
-// Local-only progress until accounts exist. Every access is guarded: storage can
-// be unavailable (private mode, blocked site data) and the app must still work.
-const KEY_MISTAKES = 'xhw.mistakes.v1'
-const KEY_SEEN = 'xhw.seen.v1'
-const KEY_PREFS = 'xhw.prefs.v1'
-const KEY_HISTORY = 'xhw.history.v1'
+// Practice progress lives in localStorage, scoped to whoever is practising: the guest
+// (signed out) or a child profile. For a profile it is a cache of the server copy;
+// finished sets are queued in an outbox and posted to the API, retried until they land.
+// Every access is guarded: storage can be unavailable (private mode, blocked site data).
+import { api } from './api.js'
 
-function read(key, fallback) {
+const KEY_PREFS = 'xhw.prefs.v1'
+const KEY_OUTBOX = 'xhw.outbox.v1'
+let scope = null // null = guest, otherwise a profile id
+
+const key = (name) => (scope ? `xhw.p.${scope}.${name}` : { mistakes: 'xhw.mistakes.v1', seen: 'xhw.seen.v1', history: 'xhw.history.v1' }[name])
+
+function read(k, fallback) {
   try {
-    const v = localStorage.getItem(key)
+    const v = localStorage.getItem(k)
     return v ? JSON.parse(v) : fallback
   } catch {
     return fallback
   }
 }
-function write(key, value) {
+function write(k, value) {
   try {
-    localStorage.setItem(key, JSON.stringify(value))
+    localStorage.setItem(k, JSON.stringify(value))
   } catch {
     /* ignore */
   }
 }
 
-export const loadMistakes = () => read(KEY_MISTAKES, {})
-export const loadSeen = () => read(KEY_SEEN, {})
+export const setScope = (profileId) => {
+  scope = profileId || null
+}
+export const getScope = () => scope
+
+export const loadMistakes = () => read(key('mistakes'), {})
+export const loadSeen = () => read(key('seen'), {})
+export const loadHistory = () => read(key('history'), [])
 export const loadPrefs = () => read(KEY_PREFS, {})
 export const savePrefs = (p) => write(KEY_PREFS, p)
-export const loadHistory = () => read(KEY_HISTORY, [])
 
-/**
- * results: [{ word, perfect }]. A wrong word enters the 错词本; it leaves after
- * being written perfectly twice in a row.
- */
-export function recordSet(results, score, source) {
+/** The guest's data on this device, for merging into a profile on first sign-in. */
+export const guestData = () => ({ mistakes: read('xhw.mistakes.v1', {}), seen: read('xhw.seen.v1', {}) })
+export const hasGuestData = () => Object.keys(read('xhw.seen.v1', {})).length > 0
+
+/** Replace a profile's local cache with the server copy. */
+export function cacheProfile(profileId, { mistakes, seen, history }) {
+  const pending = read(KEY_OUTBOX, []).filter((s) => s.profileId === profileId)
+  write(`xhw.p.${profileId}.mistakes`, mistakes)
+  write(`xhw.p.${profileId}.seen`, seen)
+  write(`xhw.p.${profileId}.history`, history)
+  // sets not yet on the server still count locally
+  const prev = scope
+  scope = profileId
+  for (const s of pending) applyLocally(s.results, s.score, s.source, s.at)
+  scope = prev
+}
+
+function applyLocally(results, score, source, t) {
   const m = loadMistakes()
   const seen = loadSeen()
-  const now = Date.now()
   for (const r of results) {
     seen[r.word] = (seen[r.word] || 0) + 1
     if (!r.perfect) {
       const prev = m[r.word] || { count: 0 }
-      m[r.word] = { count: prev.count + 1, streak: 0, last: now }
+      m[r.word] = { count: prev.count + 1, streak: 0, last: t }
     } else if (m[r.word]) {
       const streak = (m[r.word].streak || 0) + 1
       if (streak >= 2) delete m[r.word]
-      else m[r.word] = { ...m[r.word], streak, last: now }
+      else m[r.word] = { ...m[r.word], streak, last: t }
     }
   }
-  write(KEY_MISTAKES, m)
-  write(KEY_SEEN, seen)
+  write(key('mistakes'), m)
+  write(key('seen'), seen)
   const h = loadHistory()
-  h.unshift({ t: now, score, source, n: results.length })
-  write(KEY_HISTORY, h.slice(0, 50))
+  h.unshift({ t, score, source, n: results.length })
+  write(key('history'), h.slice(0, 50))
 }
+
+/**
+ * results: [{ word, perfect, score, detail }]. A wrong word enters the 错词本; it leaves
+ * after being written perfectly twice in a row (the server applies the same rule).
+ */
+export function recordSet(results, score, source) {
+  const t = Date.now()
+  applyLocally(results, score, source, t)
+  if (!scope) return
+  const outbox = read(KEY_OUTBOX, [])
+  outbox.push({ id: crypto.randomUUID(), profileId: scope, results, score, source, at: t })
+  write(KEY_OUTBOX, outbox.slice(-200))
+  flushOutbox()
+}
+
+let flushing = false
+export async function flushOutbox() {
+  if (flushing) return
+  flushing = true
+  try {
+    for (;;) {
+      const outbox = read(KEY_OUTBOX, [])
+      if (!outbox.length) break
+      const s = outbox[0]
+      try {
+        await api(`/api/profiles/${s.profileId}/sets`, { method: 'POST', body: s })
+      } catch (e) {
+        // offline / signed out / server down: keep it and try again later;
+        // a profile that no longer exists (or bad data) can never succeed, so drop it
+        if (e.status !== 404 && e.status !== 400) break
+      }
+      write(KEY_OUTBOX, read(KEY_OUTBOX, []).filter((x) => x.id !== s.id))
+    }
+  } finally {
+    flushing = false
+  }
+}
+
+if (typeof window !== 'undefined') window.addEventListener('online', () => flushOutbox())

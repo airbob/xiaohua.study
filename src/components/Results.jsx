@@ -3,10 +3,12 @@ import StrokeReplay from './StrokeReplay.jsx'
 import CharCompare from './CharCompare.jsx'
 import { Legend } from './Practice.jsx'
 import { setScore, wordScore, isPerfect, charNotes, verdict } from '../lib/score.js'
+import { useAccount } from '../lib/account.js'
 import { recordSet } from '../lib/storage.js'
 import { loadChar } from '../lib/chardata.js'
 
-export default function Results({ results, source, onAgain, onRetry, onHome }) {
+export default function Results({ results, source, onAgain, onRetry, onHome, onLogin }) {
+  const account = useAccount()
   const score = useMemo(() => setScore(results), [results])
   const v = verdict(score)
   const [replay, setReplay] = useState(null)
@@ -16,7 +18,16 @@ export default function Results({ results, source, onAgain, onRetry, onHome }) {
   useEffect(() => {
     if (saved.current) return
     saved.current = true
-    recordSet(results.map((r) => ({ word: r.word, perfect: isPerfect(r.chars) })), score, source)
+    recordSet(
+      results.map((r) => ({
+        word: r.word,
+        perfect: isPerfect(r.chars),
+        score: Math.round(wordScore(r.chars) * 100),
+        detail: r.chars.map((c) => ({ char: c.char, status: c.skipped ? 'skipped' : c.status, notes: charNotes(c) })),
+      })),
+      score,
+      source,
+    )
   }, [results, score, source])
 
   return (
@@ -45,6 +56,17 @@ export default function Results({ results, source, onAgain, onRetry, onHome }) {
         {wrong.length > 0 && <Legend />}
         <p className="muted small">点「正确」的字，可以看笔顺动画。</p>
       </section>
+
+      {account.status === 'guest' && wrong.length > 0 && (
+        <div className="nudge-card">
+          <p>
+            <b>想把错词本保存下来？</b>
+            <br />
+            <span className="muted small">家长登录后，每个孩子都有自己的错词本，换手机、换电脑也能接着练。</span>
+          </p>
+          <button className="btn" onClick={onLogin}>家长登录</button>
+        </div>
+      )}
 
       <div className="actions">
         {wrong.length > 0 && (

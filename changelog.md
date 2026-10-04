@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 — 2026-10-04
+- Parent accounts: sign in with an emailed link / 6-digit code (Google sign-in built in, shown once configured); add up to 6 children (nickname, grade, avatar) and switch between them.
+- Each child's 错词本, seen-counts and history are saved to the cloud and follow them across devices; practice still works offline and syncs later.
+- Guest progress on a device is merged into the first child on sign-in; guests see a sign-in prompt on the results page when they have mistakes.
+- Delete a child or the whole account (all data removed).
+
 ## 0.3.0 — 2026-10-04
 - SEO for xiaohua.study: title/description/keywords, canonical, Open Graph card (og.png), JSON-LD (WebSite + WebApplication/LearningResource), static fallback content for crawlers.
 - Static word-list pages /words/ and /words/p1/ … /p6/ (词语 · 拼音 · English · 例句, printable), generated after build by scripts/build-seo.mjs, plus sitemap.xml and robots.txt.

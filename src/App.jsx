@@ -1,15 +1,48 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Home from './components/Home.jsx'
 import Practice from './components/Practice.jsx'
 import Results from './components/Results.jsx'
 import { buildSet, LEVELS } from './lib/bank.js'
 import { loadPrefs, savePrefs } from './lib/storage.js'
+import { useAccount, initAccount, showNotice } from './lib/account.js'
+import { LoginModal, ProfileModal, AccountSheet } from './components/AccountUI.jsx'
+
+const LOGIN_ERRORS = {
+  cancelled: '已取消 Google 登录',
+  link_expired: '登录链接已经用过或过期了，请重新登录',
+  google_not_configured: 'Google 登录还没开通，请先用邮箱登录',
+  email_unverified: '这个 Google 账号的邮箱还没验证',
+}
 
 const DEFAULT_PREFS = { mode: 'dictation', showExample: true, showEnglish: false, autoSpeak: true }
 
 export default function App() {
   const [prefs, setPrefs] = useState(() => ({ ...DEFAULT_PREFS, ...loadPrefs() }))
   const [screen, setScreen] = useState({ name: 'home' })
+  const [modal, setModal] = useState(null) // login | account | profile-new | { edit: profile }
+  const account = useAccount()
+
+  // Load the session; handle the redirect back from Google / the emailed link.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const err = q.get('login_error')
+    if (q.has('login') || err) {
+      q.delete('login')
+      q.delete('login_error')
+      window.history.replaceState(null, '', window.location.pathname + (q.toString() ? `?${q}` : ''))
+    }
+    if (err) showNotice(LOGIN_ERRORS[err] || '登录没有成功，请再试一次')
+    initAccount()
+  }, [])
+
+  // a parent with no child yet is asked (once per visit) to add one
+  const askedFirst = useRef(false)
+  useEffect(() => {
+    if (account.status === 'signed-in' && account.profiles.length === 0 && !modal && !askedFirst.current) {
+      askedFirst.current = true
+      setModal('profile-first')
+    }
+  }, [account.status, account.profiles.length, modal])
 
   const updatePrefs = (p) => {
     const next = { ...prefs, ...p }
@@ -33,6 +66,19 @@ export default function App() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const modals = (
+    <>
+      {modal === 'login' && <LoginModal onClose={() => setModal(null)} />}
+      {modal === 'account' && (
+        <AccountSheet onClose={() => setModal(null)} onEdit={(p) => setModal({ edit: p })} onAdd={() => setModal('profile-new')} />
+      )}
+      {(modal === 'profile-new' || modal === 'profile-first') && (
+        <ProfileModal first={modal === 'profile-first'} onClose={() => setModal(null)} />
+      )}
+      {modal?.edit && <ProfileModal profile={modal.edit} onClose={() => setModal('account')} />}
+    </>
+  )
+
   if (screen.name === 'practice')
     return (
       <Practice
@@ -52,7 +98,16 @@ export default function App() {
         onAgain={() => start(screen.source)}
         onRetry={(words) => start(screen.source, words)}
         onHome={() => setScreen({ name: 'home' })}
+        onLogin={() => {
+          setScreen({ name: 'home' })
+          setModal('login')
+        }}
       />
     )
-  return <Home prefs={prefs} onPrefs={updatePrefs} onStart={start} />
+  return (
+    <>
+      <Home prefs={prefs} onPrefs={updatePrefs} onStart={start} onAccount={setModal} />
+      {modals}
+    </>
+  )
 }

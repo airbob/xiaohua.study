@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { LEVELS, SET_SIZE, countByLevel } from '../lib/bank.js'
 import { loadHistory, loadMistakes } from '../lib/storage.js'
+import { useAccount, clearNotice } from '../lib/account.js'
+import { AccountChip } from './AccountUI.jsx'
 
 const LEVEL_NOTE = {
   P1: '一年级基础词',
@@ -11,10 +13,13 @@ const LEVEL_NOTE = {
   P6: '六年级',
 }
 
-export default function Home({ prefs, onPrefs, onStart }) {
+export default function Home({ prefs, onPrefs, onStart, onAccount }) {
   const counts = useMemo(countByLevel, [])
-  const mistakes = useMemo(() => Object.keys(loadMistakes()).length, [])
-  const last = useMemo(() => loadHistory()[0], [])
+  const account = useAccount()
+  // re-read whenever the signed-in child or their synced progress changes
+  const mistakes = useMemo(() => Object.keys(loadMistakes()).length, [account.version]) // eslint-disable-line react-hooks/exhaustive-deps
+  const last = useMemo(() => loadHistory()[0], [account.version]) // eslint-disable-line react-hooks/exhaustive-deps
+  const child = account.profiles.find((p) => p.id === account.activeId)
 
   return (
     <main className="home">
@@ -24,16 +29,26 @@ export default function Home({ prefs, onPrefs, onStart }) {
           <h1>写华文</h1>
           <p className="muted">新加坡小学华文听写 · 听一听，写一写</p>
         </div>
+        <div className="brand-account">
+          <AccountChip onOpen={onAccount} />
+        </div>
       </header>
+
+      {account.notice && (
+        <div className="notice" role="status">
+          <span>{account.notice}</span>
+          <button className="btn ghost" onClick={clearNotice} aria-label="知道了">✕</button>
+        </div>
+      )}
 
       <section className="panel">
         <h2>选年级</h2>
         <div className="level-grid">
           {LEVELS.map((l) => (
-            <button key={l} className="level" onClick={() => onStart(l)}>
+            <button key={l} className={`level ${child?.grade === l ? 'mine' : ''}`} onClick={() => onStart(l)}>
               <span className="level-name">{l}</span>
               <span className="level-sub">{LEVEL_NOTE[l]}</span>
-              <span className="level-count">{counts[l] || 0} 词</span>
+              <span className="level-count">{counts[l] || 0} 词{child?.grade === l ? ` · ${child.name}的年级` : ''}</span>
             </button>
           ))}
         </div>
