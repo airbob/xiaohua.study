@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 — 2026-10-04
+- SEO for xiaohua.study: title/description/keywords, canonical, Open Graph card (og.png), JSON-LD (WebSite + WebApplication/LearningResource), static fallback content for crawlers.
+- Static word-list pages /words/ and /words/p1/ … /p6/ (词语 · 拼音 · English · 例句, printable), generated after build by scripts/build-seo.mjs, plus sitemap.xml and robots.txt.
+- /?start=P3 deep link starts a set directly; home page links to the word lists.
+- Apple touch icon; pinch-zoom allowed again outside the writing pad.
+
 ## 0.2.1 — 2026-10-04
 - Grading is much more forgiving of messy handwriting: each stroke is judged on its own shape and direction with only a loose position check, after stretching the character to fit; strokes are first read in the order written. Stroke order, reversed and missing strokes are still caught.
 - "判得不对？复制笔迹" link on the feedback card copies the raw strokes for tuning.

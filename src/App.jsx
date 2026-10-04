@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Home from './components/Home.jsx'
 import Practice from './components/Practice.jsx'
 import Results from './components/Results.jsx'
-import { buildSet } from './lib/bank.js'
+import { buildSet, LEVELS } from './lib/bank.js'
 import { loadPrefs, savePrefs } from './lib/storage.js'
 
 const DEFAULT_PREFS = { mode: 'dictation', showExample: true, showEnglish: false, autoSpeak: true }
@@ -22,6 +22,16 @@ export default function App() {
     if (!list.length) return
     setScreen({ name: 'practice', source, words: list, id: Date.now() })
   }
+
+  // Deep link from the word-list pages: /?start=P3 (or ?start=mix) jumps straight into a set.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('start')
+    const source = q && (q.toLowerCase() === 'mix' ? 'mix' : LEVELS.find((l) => l === q.toUpperCase()))
+    if (source) {
+      window.history.replaceState(null, '', window.location.pathname)
+      start(source)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (screen.name === 'practice')
     return (

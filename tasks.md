@@ -7,6 +7,7 @@
 - [ ] Deploy to Cloudflare Pages.
 
 ## Backlog
+- [ ] After launch: verify xiaohua.study in Google Search Console, submit sitemap.xml.
 - [ ] Accounts + cloud-saved 错词本.
 - [ ] Spot-check example sentences, add a manual override file.
 - [ ] Bundle stroke data locally / offline support (PWA).

@@ -53,7 +53,7 @@ for line in open(ROOT / "data/raw/cedict.txt", encoding="utf-8"):
     if m and m[1] not in gloss:
         senses = [s for s in m[2].split("/") if not s.startswith(("CL:", "variant of", "old variant", "surname "))]
         if senses:
-            gloss[m[1]] = "; ".join(senses[:2])
+            gloss[m[1]] = re.sub(r"\s*\(CL:[^)]*\)", "", "; ".join(senses[:2])).strip()
 
 def is_hanzi(w):
     return all("一" <= c <= "鿿" for c in w)

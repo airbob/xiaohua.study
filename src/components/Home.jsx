@@ -74,6 +74,23 @@ export default function Home({ prefs, onPrefs, onStart }) {
         </div>
       </section>
 
+      <section className="about">
+        <h2>词语表</h2>
+        <ul className="wordlist-links">
+          {LEVELS.map((l) => (
+            <li key={l}>
+              <a href={`/words/${l.toLowerCase()}/`}>{l} 华文听写词语表</a>
+            </li>
+          ))}
+        </ul>
+        <p className="muted small">
+          写华文是给新加坡小学生的华文听写练习：听读音、看拼音，在田字格里把整个词写出来，写完逐个字检查笔画、笔顺和方向。词语整理自 P1–P6 华文考卷里最常出现的词。
+        </p>
+        <p className="muted small" lang="en">
+          Free Chinese spelling (听写) practice for Singapore primary school students — handwrite each word and get stroke-by-stroke feedback.
+        </p>
+      </section>
+
       {last && (
         <p className="muted small center">
           上次练习：{last.score} 分 · {new Date(last.t).toLocaleDateString('zh-CN')}
