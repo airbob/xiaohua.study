@@ -73,13 +73,20 @@ export default function App() {
     return g ? () => startLevel(g, currentLevel(g)) : null
   }
 
-  // Deep link from the word-list pages: /?start=P3 (or ?start=mix) jumps straight into a set.
+  // Deep links from the word-list pages: /?start=P3 (or ?start=mix) jumps straight into a set,
+  // /?start=P3&level=4 into that level (闯这一关), /?go=review opens 复习营地.
   useEffect(() => {
-    const q = (new URLSearchParams(window.location.search).get('start') || '').toUpperCase()
-    if (!q) return
+    const params = new URLSearchParams(window.location.search)
+    const q = (params.get('start') || '').toUpperCase()
+    const dest = params.get('go')
+    if (!q && !dest) return
     window.history.replaceState(null, '', window.location.pathname)
+    if (dest === 'review') return go({ name: 'review' })
     if (q === 'MIX') play('mix')
-    else if (GRADES.includes(q)) startLevel(q, currentLevel(q))
+    else if (GRADES.includes(q)) {
+      const n = Number(params.get('level'))
+      startLevel(q, Number.isInteger(n) && n >= 1 && n <= levelCount(q) ? n : currentLevel(q))
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const modals = (
