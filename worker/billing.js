@@ -18,14 +18,18 @@ async function stripe(env, method, path, params) {
   })
   const data = await res.json()
   if (!res.ok) {
-    console.error('stripe', path, res.status, data?.error?.message)
+    const err = data?.error || {}
+    console.error('stripe', path, res.status, err.code, err.message)
+    // a customer from the other mode (test vs live), or one deleted in the dashboard
+    if (err.code === 'resource_missing' && err.param === 'customer') throw new HttpError(409, 'stripe_customer_missing')
+    if (path.startsWith('billing_portal/') && /portal|configuration/i.test(err.message || '')) throw new HttpError(503, 'portal_not_configured')
     throw new HttpError(502, 'billing_error')
   }
   return data
 }
 
-async function ensureCustomer(env, user) {
-  if (user.stripe_customer_id) return user.stripe_customer_id
+async function ensureCustomer(env, user, fresh = false) {
+  if (user.stripe_customer_id && !fresh) return user.stripe_customer_id
   const c = await stripe(env, 'POST', 'customers', { email: user.email, 'metadata[user_id]': user.id })
   await env.DB.prepare('UPDATE users SET stripe_customer_id = ? WHERE id = ?').bind(c.id, user.id).run()
   return c.id
@@ -40,9 +44,9 @@ export async function checkout(request, env, user) {
   if (!price) throw new HttpError(400, 'bad_interval')
   if (isPlus(user) && user.stripe_subscription_id && LIVE_STATUSES.has(user.subscription_status)) throw new HttpError(409, 'already_plus')
   const origin = new URL(request.url).origin
-  const session = await stripe(env, 'POST', 'checkout/sessions', {
+  const start = async (fresh) => stripe(env, 'POST', 'checkout/sessions', {
     mode: 'subscription',
-    customer: await ensureCustomer(env, user),
+    customer: await ensureCustomer(env, user, fresh),
     'line_items[0][price]': price,
     'line_items[0][quantity]': '1',
     client_reference_id: user.id,
@@ -51,6 +55,14 @@ export async function checkout(request, env, user) {
     success_url: `${origin}/?billing=success`,
     cancel_url: `${origin}/?billing=cancel`,
   })
+  let session
+  try {
+    session = await start(false)
+  } catch (e) {
+    // the saved customer no longer exists (e.g. made with the test key): make a new one
+    if (e.message !== 'stripe_customer_missing') throw e
+    session = await start(true)
+  }
   return json({ url: session.url })
 }
 

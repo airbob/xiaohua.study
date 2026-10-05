@@ -6,7 +6,7 @@ import {
 import { LEVELS } from '../lib/bank.js'
 import { api } from '../lib/api.js'
 import { t, useT, getLang } from '../lib/i18n.js'
-import { PlusTag } from './Plus.jsx'
+import { PlusTag, portalError } from './Plus.jsx'
 
 let providersCache = null
 const loadProviders = () => (providersCache ||= api('/api/auth/providers').catch(() => ({ google: false, email: true })))
@@ -432,7 +432,12 @@ export function AccountSheet({ onClose, onEdit, onAdd, onPlus, onReport, onLists
   const a = useAccount()
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [portal, setPortal] = useState({ busy: false, error: '' })
   const plus = a.plan?.plus
+  const manage = () => {
+    setPortal({ busy: true, error: '' })
+    openPortal().catch((e) => setPortal({ busy: false, error: portalError(e) }))
+  }
   const until = a.plan?.until ? new Date(a.plan.until).toLocaleDateString(getLang() === 'en' ? 'en-SG' : 'zh-CN') : ''
   return (
     <Modal title={t('谁在练习？')} onClose={onClose}>
@@ -444,7 +449,7 @@ export function AccountSheet({ onClose, onEdit, onAdd, onPlus, onReport, onLists
               <span className="muted small">{a.plan.cancelAtPeriodEnd ? t('订阅会在 {d} 结束', { d: until }) : t('下次续费：{d}', { d: until })}</span>
             </span>
             {a.plan.canManage && (
-              <button className="btn small-btn" onClick={() => openPortal().catch(() => {})}>{t('管理订阅')}</button>
+              <button className="btn small-btn" onClick={manage} disabled={portal.busy}>{portal.busy ? t('正在打开…') : t('管理订阅')}</button>
             )}
           </>
         ) : (
@@ -457,6 +462,7 @@ export function AccountSheet({ onClose, onEdit, onAdd, onPlus, onReport, onLists
           </>
         )}
       </div>
+      {portal.error && <p className="form-error">{portal.error}</p>}
       <div className="sheet-links">
         <button className="btn" onClick={() => (plus ? onReport(a.activeId) : onPlus('家长报告是 Pro 功能。'))} disabled={!a.activeId}>
           {t('学习报告')} {!plus && <PlusTag />}

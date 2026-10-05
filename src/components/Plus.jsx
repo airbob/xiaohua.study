@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAccount, startCheckout, openPortal } from '../lib/account.js'
-import { useT, getLang } from '../lib/i18n.js'
+import { t, useT, getLang } from '../lib/i18n.js'
 import { track } from '../lib/analytics.js'
 import Mascot from './Mascot.jsx'
 
@@ -19,6 +19,17 @@ const FEATURES = [
   ['孩子用 PIN 自己登录', '在孩子自己的平板上也能练，进度同步'],
   ['更多新功能', '定制页面、定制吉祥物等，开发好就解锁'],
 ]
+
+/** What to tell a parent when 管理订阅 can't open the Stripe portal. */
+export function portalError(e) {
+  return (
+    {
+      stripe_customer_missing: t('找不到这个订阅的付款记录。请发邮件给我们，我们帮你处理。'),
+      portal_not_configured: t('订阅管理暂时打不开，我们正在处理，请稍后再试。'),
+      no_subscription: t('这个账号还没有订阅。'),
+    }[e.code] || t('出错了，请再试一次')
+  )
+}
 
 /** Small "Pro" tag next to a locked feature. */
 export function PlusTag() {
@@ -54,8 +65,8 @@ export function PlusModal({ onClose, onLogin, reason }) {
     setBusy(true)
     try {
       await openPortal()
-    } catch {
-      setError(t('出错了，请再试一次'))
+    } catch (e) {
+      setError(portalError(e))
       setBusy(false)
     }
   }
