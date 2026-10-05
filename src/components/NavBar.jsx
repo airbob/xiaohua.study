@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAccount } from '../lib/account.js'
 import { track } from '../lib/analytics.js'
+import { useT, getLang } from '../lib/i18n.js'
 
 const LINKS = [
   { key: 'map', label: '汉字岛地图' },
@@ -27,7 +28,9 @@ const UserIcon = () => (
  * corner — a loud 登录 / 注册 for guests (with an ⓘ explaining why), the child's name once signed in.
  * active: 'map' | 'words' | 'camp' | 'none'. onNav(key) for in-app places; 词语表 is a real page.
  */
-export default function NavBar({ active = 'none', onNav, onAccount }) {
+export default function NavBar({ active = 'none', onNav, onAccount, onLang }) {
+  const t = useT()
+  const lang = getLang()
   const account = useAccount()
   const [info, setInfo] = useState(false)
   const bar = useRef(null)
@@ -58,7 +61,7 @@ export default function NavBar({ active = 'none', onNav, onAccount }) {
   }
 
   return (
-    <nav className={`topbar ${active === 'none' ? 'in-task' : ''}`} ref={bar} aria-label="小华听写">
+    <nav className={`topbar ${active === 'none' ? 'in-task' : ''}`} ref={bar} aria-label={t('小华听写')}>
       <div className="topbar-inner">
         <a
           className="brand"
@@ -69,7 +72,7 @@ export default function NavBar({ active = 'none', onNav, onAccount }) {
           }}
         >
           <span className="brand-logo">写</span>
-          <span className="brand-name">小华听写</span>
+          <span className="brand-name">{t('小华听写')}</span>
         </a>
 
         <div className="nav-links">
@@ -85,21 +88,25 @@ export default function NavBar({ active = 'none', onNav, onAccount }) {
                 onNav(l.key)
               }}
             >
-              {l.label}
+              {t(l.label)}
             </a>
           ))}
         </div>
 
         <span className="nav-spacer" />
 
+        <div className="lang-switch" role="group" aria-label="Language / 语言">
+          <button className={lang === 'zh' ? 'on' : ''} aria-pressed={lang === 'zh'} onClick={() => onLang('zh')} lang="zh-Hans">中文</button>
+          <button className={lang === 'en' ? 'on' : ''} aria-pressed={lang === 'en'} onClick={() => onLang('en')} lang="en">EN</button>
+        </div>
+
         {account.status === 'loading' ? null : guest ? (
           <>
-            <span className="guest-note">游客模式 · 也能直接练</span>
             <span className="login-wrap">
               <button className="login-btn" onClick={() => login('nav')}>
-                <UserIcon /> 登录 / 注册
+                <UserIcon /> <span className="login-full">{t('登录 / 注册')}</span><span className="login-short">{t('登录')}</span>
               </button>
-              <button className="info-dot" aria-label="登录有什么好处" aria-expanded={info} onClick={() => {
+              <button className="info-dot" aria-label={t('登录有什么好处')} aria-expanded={info} onClick={() => {
                   if (!info) track('login_info_open')
                   setInfo(!info)
                 }}>
@@ -109,11 +116,11 @@ export default function NavBar({ active = 'none', onNav, onAccount }) {
                 </svg>
               </button>
               {info && (
-                <div className="perks" role="dialog" aria-label="登录的好处">
+                <div className="perks" role="dialog" aria-label={t('登录的好处')}>
                   <span className="perks-arrow" aria-hidden="true" />
                   <div className="perks-head">
-                    <span className="display">登录有什么好处？</span>
-                    <button className="perks-close" aria-label="关闭" onClick={() => setInfo(false)}>
+                    <span className="display">{t('登录有什么好处？')}</span>
+                    <button className="perks-close" aria-label={t('关闭')} onClick={() => setInfo(false)}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" strokeWidth="3.4" strokeLinecap="round" aria-hidden="true">
                         <path d="M6 6l12 12M18 6L6 18" />
                       </svg>
@@ -125,17 +132,17 @@ export default function NavBar({ active = 'none', onNav, onAccount }) {
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10" /></svg>
                       </span>
                       <span>
-                        <b>{p.title}</b>
-                        <span>{p.desc}</span>
+                        <b>{t(p.title)}</b>
+                        <span>{t(p.desc)}</span>
                       </span>
                     </div>
                   ))}
                   <div className="perks-note">
-                    <b>不登录也可以练！</b>所有年级和关卡都能直接玩，只是进度和错词本只保存在这台设备上。
+                    <b>{t('不登录也可以练！')}</b>{t('所有年级和关卡都能直接玩，只是进度和错词本只保存在这台设备上。')}
                   </div>
                   <div className="perks-actions">
-                    <button className="btn" onClick={() => setInfo(false)}>先直接练</button>
-                    <button className="btn primary" onClick={() => login('nav_info')}>登录 / 注册</button>
+                    <button className="btn" onClick={() => setInfo(false)}>{t('先直接练')}</button>
+                    <button className="btn primary" onClick={() => login('nav_info')}>{t('登录 / 注册')}</button>
                   </div>
                 </div>
               )}
@@ -147,10 +154,10 @@ export default function NavBar({ active = 'none', onNav, onAccount }) {
               <>
                 <span className="me-avatar">{child.avatar}</span>
                 <span className="me-name">{child.name}</span>
-                <span className="me-sub">{child.grade}{account.child ? '' : ' · 切换'}</span>
+                <span className="me-sub">{child.grade}{account.child ? '' : ` · ${t('切换')}`}</span>
               </>
             ) : (
-              <span className="me-name">＋ 添加孩子</span>
+              <span className="me-name">{t('＋ 添加孩子')}</span>
             )}
           </button>
         )}

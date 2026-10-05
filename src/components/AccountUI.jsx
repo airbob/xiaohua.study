@@ -5,6 +5,7 @@ import {
 } from '../lib/account.js'
 import { LEVELS } from '../lib/bank.js'
 import { api } from '../lib/api.js'
+import { t, useT, getLang } from '../lib/i18n.js'
 
 let providersCache = null
 const loadProviders = () => (providersCache ||= api('/api/auth/providers').catch(() => ({ google: false, email: true })))
@@ -27,9 +28,10 @@ const ERRORS = {
   pin_too_simple: '这个 PIN 太简单了，换一个',
   pin_taken: '另一个孩子已经用了这个 PIN，换一个',
 }
-const msg = (e) => ERRORS[e?.code] || '出错了，请再试一次'
+const msg = (e) => t(ERRORS[e?.code] || '出错了，请再试一次')
 
 function Modal({ title, onClose, children }) {
+  useT()
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose?.()
     window.addEventListener('keydown', onKey)
@@ -41,7 +43,7 @@ function Modal({ title, onClose, children }) {
         <div className="sheet-head">
           <div className="modal-title">{title}</div>
           {onClose && (
-            <button className="btn ghost close" onClick={onClose} aria-label="关闭">✕</button>
+            <button className="btn ghost close" onClick={onClose} aria-label={t('关闭')}>✕</button>
           )}
         </div>
         {children}
@@ -51,6 +53,7 @@ function Modal({ title, onClose, children }) {
 }
 
 export function LoginModal({ onClose, initialTab = 'parent' }) {
+  useT()
   const [tab, setTab] = useState(initialTab) // parent | child
   const [step, setStep] = useState('choose') // choose | code
   const [email, setEmail] = useState('')
@@ -96,48 +99,48 @@ export function LoginModal({ onClose, initialTab = 'parent' }) {
   }
 
   return (
-    <Modal title="登录" onClose={() => onClose()}>
+    <Modal title={t('登录')} onClose={() => onClose()}>
       <div className="seg tabs">
         <button className={tab === 'parent' ? 'on' : ''} onClick={() => { setTab('parent'); setError('') }}>
-          <strong>我是家长</strong>
+          <strong>{t('我是家长')}</strong>
         </button>
         <button className={tab === 'child' ? 'on' : ''} onClick={() => { setTab('child'); setError('') }}>
-          <strong>我是孩子</strong>
+          <strong>{t('我是孩子')}</strong>
         </button>
       </div>
       {tab === 'child' ? (
         <ChildLogin onDone={() => onClose('signed-in')} />
       ) : step === 'choose' ? (
         <>
-          <p className="muted small">登录后，每个孩子的错词本和练习记录会保存在云端，换设备也能继续练。输入邮箱，我们会发一个验证码给你，不需要设密码。</p>
+          <p className="muted small">{t('登录后，每个孩子的错词本和练习记录会保存在云端，换设备也能继续练。输入邮箱，我们会发一个验证码给你，不需要设密码。')}</p>
           {providers?.google && (
             <>
               <a className="btn google" href="/api/auth/google/start">
-                <GoogleMark /> 用 Google 登录
+                <GoogleMark /> {t('用 Google 登录')}
               </a>
-              <div className="or"><span>或者用邮箱</span></div>
+              <div className="or"><span>{t('或者用邮箱')}</span></div>
             </>
           )}
-          {providers && !providers.email && !providers.google && <p className="form-error">登录功能还在准备中，过几天再来看看。</p>}
+          {providers && !providers.email && !providers.google && <p className="form-error">{t('登录功能还在准备中，过几天再来看看。')}</p>}
           <form onSubmit={send} className="stack">
             <input
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder="家长邮箱"
+              placeholder={t('家长邮箱')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <button className="btn primary" disabled={busy || !email}>{busy ? '发送中…' : '发送登录邮件'}</button>
+            <button className="btn primary" disabled={busy || !email}>{busy ? t('发送中…') : t('发送登录邮件')}</button>
           </form>
         </>
       ) : (
         <form onSubmit={verify} className="stack">
           <p className="small">
-            登录邮件已发到 <b>{email}</b>。输入邮件里的 6 位验证码，或者直接点邮件里的按钮。
+            {t('登录邮件已发到')} <b>{email}</b>{t('。输入邮件里的 6 位验证码，或者直接点邮件里的按钮。')}
           </p>
-          {dev && <p className="small dev">开发模式验证码：{dev.code}</p>}
+          {dev && <p className="small dev">{t('开发模式验证码：')}{dev.code}</p>}
           <input
             ref={codeInput}
             className="code-input"
@@ -149,14 +152,14 @@ export function LoginModal({ onClose, initialTab = 'parent' }) {
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
           />
-          <button className="btn primary" disabled={busy || code.length !== 6}>{busy ? '验证中…' : '登录'}</button>
+          <button className="btn primary" disabled={busy || code.length !== 6}>{busy ? t('验证中…') : t('登录')}</button>
           <button type="button" className="link-btn" onClick={() => { setStep('choose'); setCode(''); setError('') }}>
-            换个邮箱 / 重新发送
+            {t('换个邮箱 / 重新发送')}
           </button>
         </form>
       )}
       {tab === 'parent' && error && <p className="form-error">{error}</p>}
-      {tab === 'parent' && <p className="muted tiny">只用邮箱识别你的账号，不会发广告。孩子只需要一个昵称。</p>}
+      {tab === 'parent' && <p className="muted tiny">{t('只用邮箱识别你的账号，不会发广告。孩子只需要一个昵称。')}</p>}
     </Modal>
   )
 }
@@ -166,6 +169,7 @@ const isStandalone = () =>
 const isIOS = () => typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
 
 function ChildLogin({ onDone }) {
+  useT()
   const [email, setEmail] = useState(familyEmail())
   const [pin, setPinValue] = useState('')
   const [busy, setBusy] = useState(false)
@@ -186,8 +190,8 @@ function ChildLogin({ onDone }) {
   }
   return (
     <form onSubmit={submit} className="stack">
-      <p className="muted small">用爸爸或妈妈的邮箱，加上你自己的 6 位 PIN。PIN 由家长在「修改孩子资料」里设置。</p>
-      <input type="email" inputMode="email" autoComplete="username" placeholder="爸爸或妈妈的邮箱" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      <p className="muted small">{t('用爸爸或妈妈的邮箱，加上你自己的 6 位 PIN。PIN 由家长在「修改孩子资料」里设置。')}</p>
+      <input type="email" inputMode="email" autoComplete="username" placeholder={t('爸爸或妈妈的邮箱')} value={email} onChange={(e) => setEmail(e.target.value)} required />
       <input
         className="code-input"
         type="password"
@@ -195,16 +199,16 @@ function ChildLogin({ onDone }) {
         autoComplete="current-password"
         pattern="[0-9]{6}"
         maxLength={6}
-        placeholder="6 位 PIN"
+        placeholder={t('6 位 PIN')}
         value={pin}
         onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))}
       />
-      <button className="btn primary" disabled={busy || !email || pin.length !== 6}>{busy ? '登录中…' : '开始练习'}</button>
+      <button className="btn primary" disabled={busy || !email || pin.length !== 6}>{busy ? t('登录中…') : t('开始练习')}</button>
       {error && <p className="form-error">{error}</p>}
-      <p className="muted tiny">登录后这台设备会记住你半年，不用每次都登录。</p>
+      <p className="muted tiny">{t('登录后这台设备会记住你半年，不用每次都登录。')}</p>
       {isIOS() && !isStandalone() && (
         <p className="tip small">
-          想从主屏幕图标打开？请<b>先</b>点 Safari 的「分享 → 添加到主屏幕」，从图标打开后再登录。主屏幕图标和 Safari 的登录是分开记住的。
+          {t('想从主屏幕图标打开？请先点 Safari 的「分享 → 添加到主屏幕」，从图标打开后再登录。主屏幕图标和 Safari 的登录是分开记住的。')}
         </p>
       )}
     </form>
@@ -213,11 +217,12 @@ function ChildLogin({ onDone }) {
 
 /** What a signed-in child sees behind their chip: who they are, and a way out. */
 export function ChildSheet({ onClose }) {
+  useT()
   const a = useAccount()
   const p = a.profiles[0]
   const [confirm, setConfirm] = useState(false)
   return (
-    <Modal title="正在练习" onClose={onClose}>
+    <Modal title={t('正在练习')} onClose={onClose}>
       {p && (
         <div className="child-card">
           <span className="chip-avatar big">{p.avatar}</span>
@@ -227,21 +232,22 @@ export function ChildSheet({ onClose }) {
           </span>
         </div>
       )}
-      <p className="muted small">这台设备会一直记住你。换别的孩子或者家长要用的话，可以退出登录。</p>
+      <p className="muted small">{t('这台设备会一直记住你。换别的孩子或者家长要用的话，可以退出登录。')}</p>
       {confirm ? (
         <div className="danger-confirm">
-          <p className="small">退出后，下次要用 PIN 重新登录。</p>
-          <button className="btn danger" onClick={async () => { await signOut(); onClose() }}>确定退出</button>
-          <button className="btn ghost" onClick={() => setConfirm(false)}>取消</button>
+          <p className="small">{t('退出后，下次要用 PIN 重新登录。')}</p>
+          <button className="btn danger" onClick={async () => { await signOut(); onClose() }}>{t('确定退出')}</button>
+          <button className="btn ghost" onClick={() => setConfirm(false)}>{t('取消')}</button>
         </div>
       ) : (
-        <button className="btn" onClick={() => setConfirm(true)}>退出登录</button>
+        <button className="btn" onClick={() => setConfirm(true)}>{t('退出登录')}</button>
       )}
     </Modal>
   )
 }
 
 function PinSection({ profile }) {
+  useT()
   const [pin, setPinValue] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -261,44 +267,45 @@ function PinSection({ profile }) {
   }
   return (
     <div className="field">
-      <span>孩子登录 PIN {profile.hasPin || saved ? <b className="ok-text">· 已设置</b> : '· 未设置'}</span>
+      <span>{t('孩子登录 PIN')} {profile.hasPin || saved ? <b className="ok-text">· {t('已设置')}</b> : `· ${t('未设置')}`}</span>
       <div className="pin-row">
         <input
           inputMode="numeric"
           autoComplete="off"
           maxLength={6}
-          placeholder={profile.hasPin || saved ? '新 PIN（重设）' : '6 位数字'}
+          placeholder={profile.hasPin || saved ? t('新 PIN（重设）') : t('6 位数字')}
           value={pin}
           onChange={(e) => { setPinValue(e.target.value.replace(/\D/g, '')); setSaved(false) }}
         />
-        <button type="button" className="btn" disabled={busy || pin.length !== 6} onClick={save}>{busy ? '…' : '保存 PIN'}</button>
+        <button type="button" className="btn" disabled={busy || pin.length !== 6} onClick={save}>{busy ? '…' : t('保存 PIN')}</button>
       </div>
-      {saved && <span className="ok-text small">PIN 已保存。孩子用你的邮箱 + 这个 PIN 就能登录。</span>}
+      {saved && <span className="ok-text small">{t('PIN 已保存。孩子用你的邮箱 + 这个 PIN 就能登录。')}</span>}
       {error && <span className="form-error">{error}</span>}
     </div>
   )
 }
 
 function DevicesSection({ profile }) {
+  useT()
   const [devices, setDevices] = useState(null)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     listDevices(profile.id).then(setDevices).catch(() => setDevices([]))
   }, [profile.id])
-  const when = (t) => new Date(t).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+  const when = (t) => new Date(t).toLocaleDateString(getLang() === 'en' ? 'en-SG' : 'zh-CN', { month: 'numeric', day: 'numeric' })
   return (
     <div className="field">
-      <span>TA 已登录的设备</span>
+      <span>{t('TA 已登录的设备')}</span>
       {devices === null ? (
         <span className="muted small">…</span>
       ) : devices.length === 0 ? (
-        <span className="muted small">还没有</span>
+        <span className="muted small">{t('还没有')}</span>
       ) : (
         <>
           <ul className="device-list">
             {devices.map((d, i) => (
               <li key={i}>
-                {d.device || '浏览器'} <span className="muted">· 登录于 {when(d.created_at)} · 最近使用 {when(d.last_seen || d.created_at)}</span>
+                {t(d.device || '浏览器')} <span className="muted">· {t('登录于')} {when(d.created_at)} · {t('最近使用')} {when(d.last_seen || d.created_at)}</span>
               </li>
             ))}
           </ul>
@@ -308,7 +315,7 @@ function DevicesSection({ profile }) {
             disabled={busy}
             onClick={async () => { setBusy(true); await revokeDevices(profile.id); setDevices([]); setBusy(false) }}
           >
-            让这些设备全部退出
+            {t('让这些设备全部退出')}
           </button>
         </>
       )}
@@ -317,6 +324,7 @@ function DevicesSection({ profile }) {
 }
 
 export function ProfileModal({ profile, first, onClose }) {
+  useT()
   const [name, setName] = useState(profile?.name || '')
   const [grade, setGrade] = useState(profile?.grade || 'P1')
   const [avatar, setAvatar] = useState(profile?.avatar || AVATARS[0])
@@ -350,14 +358,14 @@ export function ProfileModal({ profile, first, onClose }) {
   }
 
   return (
-    <Modal title={profile ? '修改孩子资料' : first ? '添加第一个孩子' : '添加孩子'} onClose={onClose}>
+    <Modal title={profile ? t('修改孩子资料') : first ? t('添加第一个孩子') : t('添加孩子')} onClose={onClose}>
       <form onSubmit={save} className="stack">
         <label className="field">
-          <span>名字或昵称</span>
-          <input value={name} maxLength={20} onChange={(e) => setName(e.target.value)} placeholder="比如：小明、哥哥" required />
+          <span>{t('名字或昵称')}</span>
+          <input value={name} maxLength={20} onChange={(e) => setName(e.target.value)} placeholder={t('比如：小明、哥哥')} required />
         </label>
         <div className="field">
-          <span>年级</span>
+          <span>{t('年级')}</span>
           <div className="grade-pick">
             {LEVELS.map((l) => (
               <button type="button" key={l} className={grade === l ? 'on' : ''} onClick={() => setGrade(l)}>{l}</button>
@@ -365,25 +373,25 @@ export function ProfileModal({ profile, first, onClose }) {
           </div>
         </div>
         <div className="field">
-          <span>头像</span>
+          <span>{t('头像')}</span>
           <div className="avatar-pick">
             {AVATARS.map((a) => (
               <button type="button" key={a} className={avatar === a ? 'on' : ''} onClick={() => setAvatar(a)} aria-label={a}>{a}</button>
             ))}
           </div>
         </div>
-        <button className="btn primary" disabled={busy || !name.trim()}>{busy ? '保存中…' : '保存'}</button>
+        <button className="btn primary" disabled={busy || !name.trim()}>{busy ? t('保存中…') : t('保存')}</button>
       </form>
       {profile && (
         <div className="stack section-sep">
           <PinSection profile={profile} />
           <DevicesSection profile={profile} />
           <div className="field">
-            <span>这台设备只给 TA 用？</span>
+            <span>{t('这台设备只给 TA 用？')}</span>
             <button type="button" className="btn" onClick={async () => { await handOver(profile.id); onClose('handover') }}>
-              切换成「{profile.name}」的孩子模式
+              {t('切换成「{name}」的孩子模式', { name: profile.name })}
             </button>
-            <span className="muted tiny">切换后这台设备上的家长账号会退出，孩子只能看到和练习自己的内容。</span>
+            <span className="muted tiny">{t('切换后这台设备上的家长账号会退出，孩子只能看到和练习自己的内容。')}</span>
           </div>
         </div>
       )}
@@ -391,12 +399,12 @@ export function ProfileModal({ profile, first, onClose }) {
         {profile &&
           (confirmDelete ? (
             <div className="danger-confirm">
-              <p className="small">删除「{profile.name}」和 TA 的全部练习记录？删除后不能恢复。</p>
-              <button type="button" className="btn danger" onClick={remove} disabled={busy}>确定删除</button>
-              <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>取消</button>
+              <p className="small">{t('删除「{name}」和 TA 的全部练习记录？删除后不能恢复。', { name: profile.name })}</p>
+              <button type="button" className="btn danger" onClick={remove} disabled={busy}>{t('确定删除')}</button>
+              <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>{t('取消')}</button>
             </div>
           ) : (
-            <button type="button" className="link-btn danger-link" onClick={() => setConfirmDelete(true)}>删除这个孩子</button>
+            <button type="button" className="link-btn danger-link" onClick={() => setConfirmDelete(true)}>{t('删除这个孩子')}</button>
           ))}
       </form>
       {error && <p className="form-error">{error}</p>}
@@ -405,11 +413,12 @@ export function ProfileModal({ profile, first, onClose }) {
 }
 
 export function AccountSheet({ onClose, onEdit, onAdd }) {
+  useT()
   const a = useAccount()
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
   return (
-    <Modal title="谁在练习？" onClose={onClose}>
+    <Modal title={t('谁在练习？')} onClose={onClose}>
       <ul className="profile-list">
         {a.profiles.map((p) => (
           <li key={p.id} className={p.id === a.activeId ? 'on' : ''}>
@@ -418,28 +427,28 @@ export function AccountSheet({ onClose, onEdit, onAdd }) {
               <span>
                 <b>{p.name}</b>
                 <span className="muted small">
-                  {p.grade} · {p.hasPin ? 'PIN 已设置' : '未设 PIN'}
-                  {p.devices ? ` · ${p.devices} 台设备` : ''}
+                  {p.grade} · {p.hasPin ? t('PIN 已设置') : t('未设 PIN')}
+                  {p.devices ? ` · ${t('{n} 台设备', { n: p.devices })}` : ''}
                 </span>
               </span>
-              {p.id === a.activeId && <span className="tag ok">正在练习</span>}
+              {p.id === a.activeId && <span className="tag ok">{t('正在练习')}</span>}
             </button>
-            <button className="btn ghost small-btn" onClick={() => onEdit(p)} aria-label={`修改${p.name}`}>修改</button>
+            <button className="btn ghost small-btn" onClick={() => onEdit(p)} aria-label={t('修改{name}', { name: p.name })}>{t('修改')}</button>
           </li>
         ))}
       </ul>
-      {a.profiles.length < 6 && <button className="btn" onClick={onAdd}>＋ 添加孩子</button>}
+      {a.profiles.length < 6 && <button className="btn" onClick={onAdd}>{t('＋ 添加孩子')}</button>}
       <div className="sheet-foot">
-        <p className="muted small">已登录：{a.user?.email}</p>
-        <button className="btn ghost" onClick={async () => { await signOut(); onClose() }}>退出登录</button>
+        <p className="muted small">{t('已登录：')}{a.user?.email}</p>
+        <button className="btn ghost" onClick={async () => { await signOut(); onClose() }}>{t('退出登录')}</button>
         {confirm ? (
           <div className="danger-confirm">
-            <p className="small">删除账号会同时删除所有孩子的练习记录，不能恢复。</p>
-            <button className="btn danger" disabled={busy} onClick={async () => { setBusy(true); await deleteAccount(); onClose() }}>确定删除账号</button>
-            <button className="btn ghost" onClick={() => setConfirm(false)}>取消</button>
+            <p className="small">{t('删除账号会同时删除所有孩子的练习记录，不能恢复。')}</p>
+            <button className="btn danger" disabled={busy} onClick={async () => { setBusy(true); await deleteAccount(); onClose() }}>{t('确定删除账号')}</button>
+            <button className="btn ghost" onClick={() => setConfirm(false)}>{t('取消')}</button>
           </div>
         ) : (
-          <button className="link-btn danger-link" onClick={() => setConfirm(true)}>删除账号</button>
+          <button className="link-btn danger-link" onClick={() => setConfirm(true)}>{t('删除账号')}</button>
         )}
       </div>
     </Modal>

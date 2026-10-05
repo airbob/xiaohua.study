@@ -1,5 +1,6 @@
 import { Grid, chrome } from './FreePad.jsx'
 import { Check } from './Icons.jsx'
+import { useT } from '../lib/i18n.js'
 
 export const COLORS = { ok: '#2D7A3A', order: '#E39B1B', backwards: '#8A5CC2', extra: '#E4573D', missing: '#E4573D' }
 // soft tints for the model answer's problem strokes
@@ -40,6 +41,7 @@ function StrokeNumbers({ data, size, statuses }) {
  * and numbered), the child's own strokes on top coloured by verdict, and a ✓ / ! badge.
  */
 export function ResultFrame({ char, data, strokes = [], result, verdict, size, onReplay }) {
+  const t = useT()
   const ink = Math.max(4, size / 22)
   const fp = chrome(size) - 7
   const refColors = result?.refStatus?.map((s) => TINT[s] || TINT.ok)
@@ -70,12 +72,12 @@ export function ResultFrame({ char, data, strokes = [], result, verdict, size, o
             )}
           </svg>
         </div>
-        <span className={`verdict-badge ${verdict}`} aria-label={verdict === 'ok' ? '写对了' : '要改'}>
+        <span className={`verdict-badge ${verdict}`} aria-label={verdict === 'ok' ? t('写对了') : t('要改')}>
           {verdict === 'ok' ? <Check size={size > 200 ? 40 : 26} width={3.6} /> : verdict === 'order' ? '!' : '×'}
         </span>
       </div>
       {onReplay && (
-        <button className="replay-pill" onClick={onReplay}>看动画：正确笔顺</button>
+        <button className="replay-pill" onClick={onReplay}>{t('看动画：正确笔顺')}</button>
       )}
     </div>
   )

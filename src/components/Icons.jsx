@@ -80,7 +80,7 @@ export const Sprout = ({ size = 54 }) => (
 /** ★★☆ as text, with the unearned ones dimmed. */
 export function Stars({ n, of = 3, className = '' }) {
   return (
-    <span className={`stars-text ${className}`} aria-label={`${n} 颗星`}>
+    <span className={`stars-text ${className}`} aria-label={`${n} ★`}>
       {'★'.repeat(n)}
       <span className="off">{'★'.repeat(Math.max(0, of - n))}</span>
     </span>

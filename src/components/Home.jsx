@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { GRADES, gradeStatus, gradeWordCount } from '../lib/levels.js'
 import { loadHistory, loadMistakes, loadLevels, wordsToday } from '../lib/storage.js'
 import { useAccount, clearNotice } from '../lib/account.js'
+import { useT } from '../lib/i18n.js'
 import Mascot from './Mascot.jsx'
 import Footer from './Footer.jsx'
 import { Lock, Tent, Compass, Chest, Stars } from './Icons.jsx'
@@ -22,6 +23,7 @@ function homeGrade(child, history) {
 }
 
 export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) {
+  const t = useT()
   const account = useAccount()
   const v = account.version
   const levels = useMemo(loadLevels, [v])
@@ -38,7 +40,7 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) 
   return (
     <div className="home-page">
       <main className="island-home">
-        <section className="map" aria-label="汉字岛地图">
+        <section className="map" aria-label={t('汉字岛地图')}>
           <svg className="map-art" viewBox={`0 0 ${MAP_W} ${MAP_H}`} preserveAspectRatio="none" aria-hidden="true">
             {['M40 120', 'M520 700', 'M700 520', 'M380 620'].map((m) => (
               <path key={m} d={`${m} q20 -10 40 0 t40 0`} stroke="#FFFFFF" strokeWidth="3" fill="none" opacity="0.6" strokeLinecap="round" />
@@ -50,8 +52,8 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) 
           </svg>
 
           <div className="map-title">
-            <h1>汉字岛</h1>
-            <p>一座岛一个年级，打通 10 个词就过一关</p>
+            <h1>{t('汉字岛')}</h1>
+            <p>{t('一座岛一个年级，打通 10 个词就过一关')}</p>
           </div>
 
           <ol className="islands">
@@ -64,20 +66,20 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) 
                 <li key={g} className={`island-spot ${isHere ? 'here' : ''}`} style={{ '--x': pct(x, MAP_W), '--y': pct(y, MAP_H) }}>
                   {isHere && (
                     <div className="you-are-here" aria-hidden="true">
-                      <span>你在这里</span>
+                      <span>{t('你在这里')}</span>
                       <Mascot size={52} />
                     </div>
                   )}
                   <button
                     className={`island ${isHere ? 'current' : ''} ${locked ? 'locked' : ''} shape-${i}`}
                     onClick={() => onStartLevel(g, s.current)}
-                    aria-label={`${g}，${gradeWordCount(g)} 个词，${s.done ? '已通关' : `第 ${s.current} 关`}`}
+                    aria-label={t('{g}，{n} 个词，{status}', { g, n: gradeWordCount(g), status: s.done ? t('已通关') : t('第 {n} 关', { n: s.current }) })}
                   >
                     {locked && <Lock />}
                     <span className="island-name">{g}</span>
                     {!locked && <Stars n={s.stars} className="island-stars" />}
                     <span className="island-sub">
-                      {gradeWordCount(g)} 词{!locked && ` · ${s.done ? '已通关' : `第 ${s.current} 关`}`}
+                      {t('{n} 词', { n: gradeWordCount(g) })}{!locked && ` · ${s.done ? t('已通关') : t('第 {n} 关', { n: s.current })}`}
                     </span>
                   </button>
                 </li>
@@ -85,30 +87,41 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) 
             })}
           </ol>
 
-          {child && lockedFrom < GRADES.length && (
-            <div className="map-note">{GRADES[lockedFrom]}–P6 也可以直接点开练，锁只是提醒“还没到这里”。</div>
-          )}
+          {/* the start button lives on the map itself, bottom-right, where the eye already is */}
+          <div className="map-corner">
+            {child && lockedFrom < GRADES.length && (
+              <div className="map-note">{t('{from}–P6 也可以直接点开练，锁只是提醒“还没到这里”。', { from: GRADES[lockedFrom] })}</div>
+            )}
+            <div className="cta-stack">
+              <button className="cta red map-cta" onClick={() => onStartLevel(here, cta.current)}>
+                {t('出发！{g} 第 {n} 关', { g: here, n: cta.current })}
+              </button>
+              {(account.status === 'guest' || account.status === 'offline') && (
+                <p className="guest-hint">{t('游客模式 · 也能直接练')}</p>
+              )}
+            </div>
+          </div>
         </section>
 
         <aside className="side">
           {account.notice && (
             <div className="notice" role="status">
-              <span>{account.notice}</span>
-              <button className="icon-x" onClick={clearNotice} aria-label="知道了">✕</button>
+              <span>{t(account.notice)}</span>
+              <button className="icon-x" onClick={clearNotice} aria-label={t('知道了')}>✕</button>
             </div>
           )}
 
           <div className="card task">
             <div className="task-head">
-              <h2 className="display">今日任务</h2>
+              <h2 className="display">{t('今日任务')}</h2>
               <span className="pill green">{Math.min(today, DAILY_GOAL)} / {DAILY_GOAL}</span>
             </div>
             <div className="bar"><div style={{ width: `${Math.min(100, (today / DAILY_GOAL) * 100)}%` }} /></div>
             <p>
               {today >= DAILY_GOAL ? (
-                <><Chest size={22} /> 今天的宝箱打开啦！明天再来。</>
+                <><Chest size={22} /> {t('今天的宝箱打开啦！明天再来。')}</>
               ) : (
-                `再写 ${DAILY_GOAL - today} 个词，就能打开今天的宝箱。`
+                t('再写 {n} 个词，就能打开今天的宝箱。', { n: DAILY_GOAL - today })
               )}
             </p>
           </div>
@@ -116,36 +129,33 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) 
           <button className="card big-link" onClick={onReview}>
             <Tent />
             <span>
-              <span className="display">复习营地</span>
-              <span className="sub">{mistakes ? `错词本 · ${mistakes} 个词等你救回来` : '错词本空空的，真棒！'}</span>
+              <span className="display">{t('复习营地')}</span>
+              <span className="sub">{mistakes ? t('错词本 · {n} 个词等你救回来', { n: mistakes }) : t('错词本空空的，真棒！')}</span>
             </span>
           </button>
 
           <button className="card big-link navy" onClick={onMix}>
             <Compass />
             <span>
-              <span className="display">随机探险</span>
-              <span className="sub">P1–P6 混合</span>
+              <span className="display">{t('随机探险')}</span>
+              <span className="sub">{t('P1–P6 混合')}</span>
             </span>
           </button>
 
           <div className="card play">
-            <h2 className="small-title">玩法</h2>
+            <h2 className="small-title">{t('玩法')}</h2>
             <div className="mode-pick">
-              <button className={prefs.mode === 'dictation' ? 'on' : ''} onClick={() => onPrefs({ mode: 'dictation' })}>听写挑战</button>
-              <button className={prefs.mode === 'trace' ? 'on' : ''} onClick={() => onPrefs({ mode: 'trace' })}>描红热身</button>
+              <button className={prefs.mode === 'dictation' ? 'on' : ''} onClick={() => onPrefs({ mode: 'dictation' })}>{t('听写挑战')}</button>
+              <button className={prefs.mode === 'trace' ? 'on' : ''} onClick={() => onPrefs({ mode: 'trace' })}>{t('描红热身')}</button>
             </div>
             <div className="switch-list">
-              <Toggle label="自动读词" hint="每个词自动念一遍" on={prefs.autoSpeak} set={(x) => onPrefs({ autoSpeak: x })} />
-              <Toggle label="例句" hint="显示带空格的句子" on={prefs.showExample} set={(x) => onPrefs({ showExample: x })} />
-              <Toggle label="英文意思" hint="显示英文解释" on={prefs.showEnglish} set={(x) => onPrefs({ showEnglish: x })} />
+              <Toggle label={t('游戏音效')} hint={t('写对和过关时的声音')} on={prefs.sound !== false} set={(x) => onPrefs({ sound: x })} />
+              <Toggle label={t('自动读词')} hint={t('每个词自动念一遍')} on={prefs.autoSpeak} set={(x) => onPrefs({ autoSpeak: x })} />
+              <Toggle label={t('例句')} hint={t('显示带空格的句子')} on={prefs.showExample} set={(x) => onPrefs({ showExample: x })} />
+              <Toggle label={t('英文意思')} hint={t('显示英文解释')} on={prefs.showEnglish} set={(x) => onPrefs({ showEnglish: x })} />
             </div>
           </div>
 
-          <div className="grow" />
-          <button className="cta red" onClick={() => onStartLevel(here, cta.current)}>
-            出发！{here} 第 {cta.current} 关
-          </button>
         </aside>
       </main>
 
@@ -155,6 +165,7 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) 
 }
 
 function Toggle({ label, hint, on, set }) {
+  const t = useT()
   return (
     <button type="button" role="switch" aria-checked={!!on} className="switch-row" onClick={() => set(!on)}>
       <span className="switch-text">
@@ -162,7 +173,7 @@ function Toggle({ label, hint, on, set }) {
         {hint && <span className="switch-hint">{hint}</span>}
       </span>
       <span className={`switch ${on ? 'on' : ''}`} aria-hidden="true">
-        <span className="switch-word">{on ? '开' : '关'}</span>
+        <span className="switch-word">{on ? t('开') : t('关')}</span>
         <span className="switch-knob">
           {on && (
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">

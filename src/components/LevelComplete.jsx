@@ -5,6 +5,8 @@ import { setScore, wordScore, isPerfect, charNotes } from '../lib/score.js'
 import { starsFor, toNextStar } from '../lib/levels.js'
 import { recordSet, wordsToday } from '../lib/storage.js'
 import { track } from '../lib/analytics.js'
+import { useT } from '../lib/i18n.js'
+import { soundLevelComplete, confettiParty } from '../lib/celebrate.js'
 import { DAILY_GOAL } from './Home.jsx'
 import { useAccount } from '../lib/account.js'
 
@@ -17,7 +19,7 @@ const mmss = (ms) => {
 export function mistakeOf(r) {
   const bad = r.chars.map((c, i) => (isPerfect([c]) ? null : i)).filter((i) => i !== null)
   const first = r.chars[bad[0]]
-  const note = first ? (first.skipped || first.status === 'blank' ? '听写时没写出来' : `「${first.char}」${charNotes(first)[0]}`) : ''
+  const note = first ? (first.skipped || first.status === 'blank' ? '听写时没写出来' : `「${first.char}」${charNotes(first, 'zh')[0]}`) : ''
   return { bad: bad.join(','), note }
 }
 
@@ -25,7 +27,8 @@ export function mistakeOf(r) {
  * End of a set. kind: 'level' | 'mix' | 'review'; level: { grade, level } for island levels.
  * Records the set (local + server) once.
  */
-export default function LevelComplete({ results, kind, level, stats, onHome, onNext, onAgain, onReview, onLogin }) {
+export default function LevelComplete({ results, kind, level, stats, sound = true, onHome, onNext, onAgain, onReview, onLogin }) {
+  const t = useT()
   const account = useAccount()
   const n = results.length
   const correct = results.filter((r) => isPerfect(r.chars)).length
@@ -38,13 +41,15 @@ export default function LevelComplete({ results, kind, level, stats, onHome, onN
   useEffect(() => {
     if (saved.current) return
     saved.current = true
+    confettiParty()
+    if (sound !== false) soundLevelComplete()
     const before = wordsToday()
     recordSet(
       results.map((r) => ({
         word: r.word,
         perfect: isPerfect(r.chars),
         score: Math.round(wordScore(r.chars) * 100),
-        detail: r.chars.map((c) => ({ char: c.char, status: c.skipped ? 'skipped' : c.status, notes: charNotes(c) })),
+        detail: r.chars.map((c) => ({ char: c.char, status: c.skipped ? 'skipped' : c.status, notes: charNotes(c, 'zh') })),
         ...(isPerfect(r.chars) ? {} : mistakeOf(r)),
       })),
       score,
@@ -65,7 +70,7 @@ export default function LevelComplete({ results, kind, level, stats, onHome, onN
     if (before < DAILY_GOAL && wordsToday() >= DAILY_GOAL) track('daily_goal_complete', { words: wordsToday() })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const title = kind === 'level' ? `第 ${level.level} 关 通关！` : kind === 'review' ? '复习完成！' : '探险完成！'
+  const title = kind === 'level' ? t('第 {n} 关 通关！', { n: level.level }) : kind === 'review' ? t('复习完成！') : t('探险完成！')
 
   return (
     <div className="complete-page">
@@ -85,24 +90,24 @@ export default function LevelComplete({ results, kind, level, stats, onHome, onN
       <div className="complete-card">
         <div className="complete-chest"><Chest open size={190} /></div>
         <h1 className="display">{title}</h1>
-        <div className="big-stars" aria-label={`${stars} 颗星`}>
+        <div className="big-stars" aria-label={t('{n} 颗星', { n: stars })}>
           <BigStar size={70} on={stars >= 1} />
           <BigStar size={92} on={stars >= 2} />
           <BigStar size={70} on={stars >= 3} />
         </div>
-        <p className="next-star">{more === null ? '拿满 3 颗星，太厉害了！' : `再写对 ${more} 个词就能拿到 ${stars + 1} 颗星`}</p>
+        <p className="next-star">{more === null ? t('拿满 3 颗星，太厉害了！') : t('再写对 {n} 个词就能拿到 {s} 颗星', { n: more, s: stars + 1 })}</p>
 
         <div className="stat-row">
-          <div className="stat"><b className="display green-text">{correct} / {n}</b><span>写对的词</span></div>
-          <div className="stat"><b className="display">×{stats.bestStreak}</b><span>最高连对</span></div>
-          <div className="stat"><b className="display">{mmss(stats.ms)}</b><span>用时</span></div>
+          <div className="stat"><b className="display green-text">{correct} / {n}</b><span>{t('写对的词')}</span></div>
+          <div className="stat"><b className="display">×{stats.bestStreak}</b><span>{t('最高连对')}</span></div>
+          <div className="stat"><b className="display">{mmss(stats.ms)}</b><span>{t('用时')}</span></div>
         </div>
 
         {wrong.length > 0 && (
           <div className="camp-box">
             <Tent size={44} />
             <div className="camp-words">
-              <b>{wrong.length} 个词去了复习营地</b>
+              <b>{t('{n} 个词去了复习营地', { n: wrong.length })}</b>
               <span className="word-chips">
                 {wrong.map((r) => {
                   const bad = new Set(mistakeOf(r).bad.split(',').map(Number))
@@ -114,26 +119,26 @@ export default function LevelComplete({ results, kind, level, stats, onHome, onN
                 })}
               </span>
             </div>
-            <button className="btn-chunky soft" onClick={() => onReview(wrong)}>马上复习</button>
+            <button className="btn-chunky soft" onClick={() => onReview(wrong)}>{t('马上复习')}</button>
           </div>
         )}
 
         {account.status === 'guest' && wrong.length > 0 && (
           <button className="save-nudge" onClick={onLogin}>
-            想把复习营地和星星保存下来？<b>家长登录 →</b>
+            {t('想把复习营地和星星保存下来？')}<b>{t('家长登录 →')}</b>
           </button>
         )}
 
         <div className="complete-actions">
-          <button className="cta white" onClick={onHome}>回到地图</button>
+          <button className="cta white" onClick={onHome}>{t('回到地图')}</button>
           {kind === 'level' && onNext ? (
-            <button className="cta red" onClick={onNext}>下一关 →</button>
+            <button className="cta red" onClick={onNext}>{t('下一关 →')}</button>
           ) : (
-            <button className="cta red" onClick={onAgain}>{kind === 'review' ? '继续复习' : '再来一组'}</button>
+            <button className="cta red" onClick={onAgain}>{kind === 'review' ? t('继续复习') : t('再来一组')}</button>
           )}
         </div>
       </div>
-      <Mascot mood="cheer" size={140} className="complete-mascot" label="墨墨在欢呼" />
+      <Mascot mood="cheer" size={140} className="complete-mascot" label={t('墨墨在欢呼')} />
     </div>
   )
 }

@@ -8,6 +8,21 @@
 // scripts/build-seo.mjs writes them into dist/; vite.config.js serves them in dev.
 const SITE = 'https://xiaohua.study'
 const LEVELS = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']
+// Interface text in both languages; CSS shows one (html.lang-en). The study content is not
+// translated. The choice is shared with the app (localStorage 'xhw.lang', or ?lang=en|zh).
+const L = (zh, en) => `<span class="i-zh">${zh}</span><span class="i-en" lang="en">${en}</span>`
+const GRADE_EN = { P1: 'Primary 1', P2: 'Primary 2', P3: 'Primary 3', P4: 'Primary 4', P5: 'Primary 5', P6: 'Primary 6' }
+const LANG_BOOT = `<script>
+(function () {
+  var l = new URLSearchParams(location.search).get('lang')
+  try { if (l === 'en' || l === 'zh') localStorage.setItem('xhw.lang', l); else l = localStorage.getItem('xhw.lang') } catch (e) {}
+  if (l === 'en') { document.documentElement.classList.add('lang-en'); document.documentElement.lang = 'en' }
+})()
+function setLang(l) {
+  try { localStorage.setItem('xhw.lang', l) } catch (e) {}
+  location.replace(location.pathname + location.hash)
+}
+</script>`
 const GRADE_CN = { P1: '一年级', P2: '二年级', P3: '三年级', P4: '四年级', P5: '五年级', P6: '六年级' }
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -48,13 +63,19 @@ button{font-family:inherit;cursor:pointer}
 .navlink:hover{color:var(--yellow)}
 .navlink[aria-current]{color:#ffe08a;font-weight:900;padding:8px 14px;background:var(--navy-2)}
 .navlinks{display:flex;gap:4px;flex-wrap:wrap}
+html.lang-en .i-zh,html:not(.lang-en) .i-en,html.lang-en .zh-only{display:none!important}
+html.lang-en{--display:'Fredoka','ZCOOL KuaiLe',sans-serif}
+.login-short{display:none}
+@media (max-width:760px){.login-full{display:none}.login-short{display:inline}.topnav .wrap{padding-left:12px;padding-right:12px}.topnav .logo{width:34px;height:34px;font-size:20px;border-radius:10px}.topnav .brand-name{font-size:20px}.acct{gap:6px}.lang-switch{padding:2px}.lang-switch button{height:26px;min-width:32px;padding:0 5px;font-size:12px}}
+.lang-switch{display:flex;background:#3a4566;border:2.5px solid var(--ink);border-radius:12px;padding:3px;gap:2px}
+.lang-switch button{height:30px;min-width:40px;padding:0 8px;border:none;border-radius:9px;background:transparent;color:#c9d0e3;font:inherit;font-size:13px;font-weight:900;cursor:pointer}
+html:not(.lang-en) .lang-switch [data-l=zh],html.lang-en .lang-switch [data-l=en]{background:#ffe08a;color:var(--ink)}
 .acct{display:flex;align-items:center;gap:10px}
-.guest-note{font-size:13px;color:#b9c0d4;white-space:nowrap}
 .login-btn{height:44px;padding:0 18px 0 14px;border-radius:14px;background:#ffe08a;border:3px solid var(--ink);box-shadow:0 0 0 2px #ffe08a;display:flex;align-items:center;gap:8px;font-size:16px;font-weight:900;color:var(--ink);text-decoration:none;white-space:nowrap}
 .login-btn:hover{background:#ffd65c;color:var(--ink)}
 .me-btn{height:44px;display:flex;align-items:center;gap:8px;padding:0 14px 0 8px;border-radius:14px;background:#fff;border:3px solid var(--ink);color:var(--ink);text-decoration:none;font-family:var(--display);font-size:20px}
 .me-btn small{font-family:var(--body,inherit);font-size:12px;font-weight:700;color:var(--muted)}
-@media (max-width:760px){.topnav .wrap{gap:6px;padding-top:8px;padding-bottom:8px}.guest-note{display:none}.login-btn{height:38px;font-size:14px}.navlinks{order:3;width:100%;justify-content:space-between}.navlink{flex:1;text-align:center;padding:8px 6px;font-size:14px}}
+@media (max-width:760px){.topnav .wrap{gap:6px;padding-top:8px;padding-bottom:8px}.login-btn{height:38px;font-size:14px}.navlinks{order:3;width:100%;justify-content:space-between}.navlink{flex:1;text-align:center;padding:8px 6px;font-size:14px}}
 
 .hero{background:var(--sea);border-bottom:4px solid var(--ink);position:relative;overflow:hidden}
 .hero .waves{position:absolute;left:0;top:0;width:100%;height:100%}
@@ -225,15 +246,16 @@ const SCRIPT = `
   var levels = read(key('levels', 'xhw.levels.v1'), {})
   var mistakes = read(key('mistakes', 'xhw.mistakes.v1'), {})
   var seen = read(key('seen', 'xhw.seen.v1'), {})
+  var EN = document.documentElement.classList.contains('lang-en')
   var grade = document.body.getAttribute('data-grade')
   if (grade) {
     var saved = levels[grade] || {}
     document.querySelectorAll('[data-level]').forEach(function (el) {
       var n = el.getAttribute('data-level'), s = saved[n], stars = s ? s.stars : 0
       el.querySelectorAll('[data-stars] span').forEach(function (sp, i) { if (i < stars) sp.className = 'on' })
-      var st = el.querySelector('[data-stars]'); if (st) st.setAttribute('aria-label', stars ? stars + ' 颗星' : '还没有星星')
+      var st = el.querySelector('[data-stars]'); if (st) st.setAttribute('aria-label', EN ? (stars ? stars + ' stars' : 'No stars yet') : (stars ? stars + ' 颗星' : '还没有星星'))
       var meta = el.querySelector('[data-meta]')
-      if (meta) meta.textContent = meta.getAttribute('data-count') + ' 个词 · ' + (stars ? '已过关' : '还没开始')
+      if (meta) meta.textContent = EN ? meta.getAttribute('data-count') + ' words · ' + (stars ? 'Cleared' : 'Not started') : meta.getAttribute('data-count') + ' 个词 · ' + (stars ? '已过关' : '还没开始')
     })
     document.querySelectorAll('[data-dot]').forEach(function (el) { if ((saved[el.getAttribute('data-dot')] || {}).stars) el.classList.add('passed') })
     var learned = 0
@@ -261,20 +283,20 @@ let COUNTS = {}
 function footer() {
   return `<footer class="site-foot">
 <section class="foot-lists"><div class="foot-wrap">
-<div class="foot-lists-head"><h2>按年级看词语表</h2><span>每个词附拼音、英文意思和考卷例句</span></div>
-<div class="foot-islands">${LEVELS.map((g) => `<a class="foot-island" href="/words/${g.toLowerCase()}/"><span class="g">${g}</span><b>华文听写词语表</b><small>${COUNTS[g] || 0} 词</small></a>`).join('')}</div>
+<div class="foot-lists-head"><h2>${L('按年级看词语表', 'Word lists by grade')}</h2><span>${L('每个词附拼音、英文意思和考卷例句', 'Every word with pinyin, English meaning and an exam example sentence')}</span></div>
+<div class="foot-islands">${LEVELS.map((g) => `<a class="foot-island" href="/words/${g.toLowerCase()}/"><span class="g">${g}</span><b>${L('华文听写词语表', 'Chinese spelling list')}</b><small>${L(`${COUNTS[g] || 0} 词`, `${COUNTS[g] || 0} words`)}</small></a>`).join('')}</div>
 </div></section>
 <div class="foot-wrap foot-main">
 <div class="foot-about">
-<div class="foot-brand"><span class="logo">写</span><span class="n">小华听写</span><svg width="46" height="50" viewBox="0 0 120 130" aria-hidden="true"><path d="M60 6 C 52 26 20 56 20 84 a40 40 0 0 0 80 0 C 100 56 68 26 60 6 Z" fill="#8ED6D0" stroke="#1B1B26" stroke-width="6"/><circle cx="45" cy="82" r="9" fill="#FFFFFF"/><circle cx="75" cy="82" r="9" fill="#FFFFFF"/><circle cx="47" cy="84" r="4.5" fill="#1B1B26"/><circle cx="77" cy="84" r="4.5" fill="#1B1B26"/><path d="M52 102 q8 7 16 0" stroke="#1B1B26" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
-<p>小华听写是给新加坡小学生的华文听写练习：听读音、看拼音，在田字格里把整个词写出来，写完逐个字检查笔画、笔顺和方向。词语整理自 P1–P6 华文考卷里最常出现的词。</p>
+<div class="foot-brand"><span class="logo">写</span><span class="n">${L('小华听写', 'Xiaohua')}</span><svg width="46" height="50" viewBox="0 0 120 130" aria-hidden="true"><path d="M60 6 C 52 26 20 56 20 84 a40 40 0 0 0 80 0 C 100 56 68 26 60 6 Z" fill="#8ED6D0" stroke="#1B1B26" stroke-width="6"/><circle cx="45" cy="82" r="9" fill="#FFFFFF"/><circle cx="75" cy="82" r="9" fill="#FFFFFF"/><circle cx="47" cy="84" r="4.5" fill="#1B1B26"/><circle cx="77" cy="84" r="4.5" fill="#1B1B26"/><path d="M52 102 q8 7 16 0" stroke="#1B1B26" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
+<p class="zh-only">小华听写是给新加坡小学生的华文听写练习：听读音、看拼音，在田字格里把整个词写出来，写完逐个字检查笔画、笔顺和方向。词语整理自 P1–P6 华文考卷里最常出现的词。</p>
 <p class="en" lang="en">Xiaohua (小华听写) is free Chinese tingxie (听写, spelling) practice for Singapore primary school students — handwrite each word and get stroke-by-stroke feedback.</p>
-<p class="credit">词语整理自新加坡小学华文考卷（2019–2025）· 英文释义来自 CC-CEDICT（CC BY-SA 4.0）</p>
+<p class="credit">${L('词语整理自新加坡小学华文考卷（2019–2025）· 英文释义来自 CC-CEDICT（CC BY-SA 4.0）', 'Words from Singapore primary school Chinese exam papers (2019–2025) · English meanings from CC-CEDICT (CC BY-SA 4.0)')}</p>
 </div>
 <div class="foot-more">
-<div class="foot-kicker">我们的其他作品</div>
-<a class="foot-card" href="https://sgexamhub.com" target="_blank" rel="noopener"><span class="foot-card-icon" style="background:#FFE08A"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z" fill="#FFFFFF"/><path d="M15 3v4h4"/><path d="M10 11h6M10 14h6M10 17h4"/><path d="M4 6v15h12"/></svg></span><span class="foot-card-text"><b>SGExamHub</b><span>新加坡小学考卷资源平台</span><i>sgexamhub.com</i></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="在新窗口打开" role="img"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v6H4V6h6"/></svg></a>
-<a class="foot-card" href="https://dreamon.im/xiaohua" target="_blank" rel="noopener"><span class="foot-card-icon" style="background:#8ED6D0"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3" fill="#FFFFFF"/><path d="M10.5 18.5h3"/><path d="M9.5 8.5l2 2 3.5-4"/></svg></span><span class="foot-card-text"><b>小华 App</b><span>拍照识字：扫一扫就有拼音、笔顺动画和练习</span><i>dreamon.im/xiaohua</i></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="在新窗口打开" role="img"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v6H4V6h6"/></svg></a>
+<div class="foot-kicker">${L('我们的其他作品', 'More from us')}</div>
+<a class="foot-card" href="https://sgexamhub.com" target="_blank" rel="noopener"><span class="foot-card-icon" style="background:#FFE08A"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z" fill="#FFFFFF"/><path d="M15 3v4h4"/><path d="M10 11h6M10 14h6M10 17h4"/><path d="M4 6v15h12"/></svg></span><span class="foot-card-text"><b>SGExamHub</b><span>${L('新加坡小学考卷资源平台', 'Singapore primary school exam papers')}</span><i>sgexamhub.com</i></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="在新窗口打开" role="img"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v6H4V6h6"/></svg></a>
+<a class="foot-card" href="https://dreamon.im/xiaohua" target="_blank" rel="noopener"><span class="foot-card-icon" style="background:#8ED6D0"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3" fill="#FFFFFF"/><path d="M10.5 18.5h3"/><path d="M9.5 8.5l2 2 3.5-4"/></svg></span><span class="foot-card-text"><b>${L('小华 App', 'Xiaohua App')}</b><span>${L('拍照识字：扫一扫就有拼音、笔顺动画和练习', 'Snap a photo of Chinese text to get pinyin, stroke animations and practice')}</span><i>dreamon.im/xiaohua</i></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="在新窗口打开" role="img"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v6H4V6h6"/></svg></a>
 </div>
 </div>
 </footer>`
@@ -285,6 +307,7 @@ function page({ url, title, description, body, jsonld, grade = '' }) {
 <html lang="zh-Hans">
 <head>
 <meta charset="UTF-8" />
+${LANG_BOOT}
 ${GA}
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${esc(title)}</title>
@@ -303,21 +326,22 @@ ${GA}
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Noto+Sans+SC:wght@400;500;700;900&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
 <script type="application/ld+json">${JSON.stringify(jsonld)}</script>
 <style>${CSS}</style>
 </head>
 <body data-grade="${grade}">
 <nav class="topnav" aria-label="小华听写">
 <div class="wrap">
-<a class="brand" href="/"><span class="logo">写</span><span class="brand-name">小华听写</span></a>
+<a class="brand" href="/"><span class="logo">写</span><span class="brand-name">${L('小华听写', 'Xiaohua')}</span></a>
 <span class="navlinks">
-<a class="navlink" href="/">汉字岛地图</a>
-<a class="navlink" href="/words/"${url === '/words/' ? ' aria-current="page"' : ' aria-current="true"'}>词语表</a>
-<a class="navlink" href="/?go=review">复习营地</a>
+<a class="navlink" href="/">${L('汉字岛地图', 'Island map')}</a>
+<a class="navlink" href="/words/"${url === '/words/' ? ' aria-current="page"' : ' aria-current="true"'}>${L('词语表', 'Word lists')}</a>
+<a class="navlink" href="/?go=review">${L('复习营地', 'Review Camp')}</a>
 </span>
 <span class="sp"></span>
-<span class="acct" id="acct"><span class="guest-note">游客模式 · 也能直接练</span><a class="login-btn" href="/?go=login"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>登录 / 注册</a></span>
+<span class="lang-switch" role="group" aria-label="Language / 语言"><button type="button" data-l="zh" onclick="setLang('zh')" lang="zh-Hans">中文</button><button type="button" data-l="en" onclick="setLang('en')" lang="en">EN</button></span>
+<span class="acct" id="acct"><a class="login-btn" href="/?go=login"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="login-full">${L('登录 / 注册', 'Log in / Sign up')}</span><span class="login-short">${L('登录', 'Log in')}</span></a></span>
 </div>
 </nav>
 ${body}
@@ -334,7 +358,7 @@ fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.ok
   var a = document.createElement('a')
   a.className = 'me-btn'
   a.href = '/'
-  a.textContent = p ? p.avatar + ' ' + p.name + ' ' : '＋ 添加孩子'
+  a.textContent = p ? p.avatar + ' ' + p.name + ' ' : (document.documentElement.classList.contains('lang-en') ? '+ Add a child' : '＋ 添加孩子')
   if (p) { var s = document.createElement('small'); s.textContent = p.grade; a.appendChild(s) }
   el.replaceChildren(a)
 }).catch(function () {})
@@ -346,21 +370,24 @@ fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.ok
 
 const crumbs = (items) =>
   `<nav class="crumbs" aria-label="位置">${items
-    .map(([href, label]) => (href ? `<a href="${href}">${esc(label)}</a>` : `<span>${esc(label)}</span>`))
+    .map(([href, label]) => {
+      const text = Array.isArray(label) ? L(esc(label[0]), esc(label[1])) : esc(label)
+      return href ? `<a href="${href}">${text}</a>` : `<span>${text}</span>`
+    })
     .join('<span>›</span>')}</nav>`
 
 const breadcrumbLd = (items) => ({
   '@type': 'BreadcrumbList',
-  itemListElement: items.map(([href, label], i) => ({ '@type': 'ListItem', position: i + 1, name: label, ...(href ? { item: SITE + href } : {}) })),
+  itemListElement: items.map(([href, label], i) => ({ '@type': 'ListItem', position: i + 1, name: Array.isArray(label) ? label[0] : label, ...(href ? { item: SITE + href } : {}) })),
 })
 
 const gradeSwitch = (current) =>
-  `<nav class="switch-grade" aria-label="换一座岛"><b>换一座岛：</b>${LEVELS.map(
+  `<nav class="switch-grade" aria-label="换一座岛"><b>${L('换一座岛：', 'Other islands:')}</b>${LEVELS.map(
     (l) => `<a class="grade-pill" href="/words/${l.toLowerCase()}/"${l === current ? ' aria-current="page"' : ''}>${l}</a>`,
   ).join('')}</nav>`
 
 const wordCard = (w) => `<article class="word" data-word="${esc(w.word)}">
-<span class="camp-tag" hidden>在复习营地</span>
+<span class="camp-tag" hidden>${L('在复习营地', 'In Review Camp')}</span>
 <div class="word-l"><div class="cells">${[...w.word].map((c) => `<span class="cell">${esc(c)}</span>`).join('')}</div><span class="py">${esc(w.pinyin.join(' '))}</span></div>
 <div class="word-r"><div class="gloss-row"><span class="gloss" lang="en">${esc(w.en || '')}</span><button class="say" type="button" data-say="${esc(w.word)}" aria-label="读「${esc(w.word)}」">${SPEAKER}</button></div>${
   w.example ? `\n<p class="ex">${filled(w)}</p>` : ''
@@ -385,23 +412,23 @@ export function renderSeoPages(words) {
       level === 'P1'
         ? '一年级还没有考卷数据，这份词表收录了一年级最基础的常用词（家人、学校、身体、颜色、动物、天气等）。'
         : `这份词表整理自新加坡小学${GRADE_CN[level]}华文考卷：一个词在${GRADE_CN[level]}考卷里经常出现、在更低年级还不常见，就收进这个年级。`
-    const crumbItems = [['/', '小华听写'], ['/words/', '词语表'], [null, `${level} 华文听写词语`]]
+    const crumbItems = [['/', ['小华听写', 'Xiaohua']], ['/words/', ['词语表', 'Word lists']], [null, [`${level} 华文听写词语`, `${level} spelling words`]]]
     const start = `/?start=${level}`
     const body = `<header class="hero">${WAVES}
 <div class="wrap hero-in">
 <div class="hero-text">
 ${crumbs(crumbItems)}
-<h1>${level} 华文听写词语表</h1>
-<p class="lead">${list.length} 个词，分成 ${parts.length} 关，每个词附汉语拼音、英文意思和考卷里的例句。${source}</p>
+<h1>${L(`${level} 华文听写词语表`, `${level} Chinese Spelling List`)}</h1>
+<p class="lead zh-only">${list.length} 个词，分成 ${parts.length} 关，每个词附汉语拼音、英文意思和考卷里的例句。${source}</p>
 <p class="lead-en" lang="en">${level} Chinese spelling (听写) word list for Singapore primary school — ${list.length} words with hanyu pinyin, English meaning and an example sentence from past exam papers.</p>
-<div class="actions"><a class="btn red" href="${start}">开始 ${level} 听写 ${ARROW}</a><a class="btn" href="/">回到地图选关</a></div>
+<div class="actions"><a class="btn red" href="${start}">${L(`开始 ${level} 听写`, `Start ${level} dictation`)} ${ARROW}</a><a class="btn" href="/">${L('回到地图选关', 'Pick a level on the map')}</a></div>
 </div>
 <div class="hero-side" aria-hidden="true">
-<div class="island"><div class="island-body"><span class="display">${level}</span><small>${GRADE_CN[level]}岛</small></div>${FLAG}</div>
+<div class="island"><div class="island-body"><span class="display">${level}</span><small>${L(`${GRADE_CN[level]}岛`, GRADE_EN[level])}</small></div>${FLAG}</div>
 <div class="stats">
-<div class="stat"><span class="display">${list.length}</span><small>个词</small></div>
-<div class="stat"><span class="display">${parts.length}</span><small>关</small></div>
-<div class="stat"><span class="display" data-learned>0</span><small>已学会</small></div>
+<div class="stat"><span class="display">${list.length}</span><small>${L('个词', 'words')}</small></div>
+<div class="stat"><span class="display">${parts.length}</span><small>${L('关', 'levels')}</small></div>
+<div class="stat"><span class="display" data-learned>0</span><small>${L('已学会', 'learned')}</small></div>
 </div>
 </div>
 </div>
@@ -409,11 +436,11 @@ ${crumbs(crumbItems)}
 <main class="wrap main">
 ${gradeSwitch(level)}
 <section class="lv-index" aria-label="全部关卡">
-<h2 class="section-title">全部关卡</h2>
+<h2 class="section-title">${L('全部关卡', 'All levels')}</h2>
 <div class="lv-grid">${parts
       .map(
         (p, i) =>
-          `<a class="lv-card" href="#level-${i + 1}"><span class="lv-dot" data-dot="${i + 1}">${i + 1}</span><span class="lv-card-text"><b>第 ${i + 1} 关</b><small>${p.length} 个词</small></span>${CHEVRON}</a>`,
+          `<a class="lv-card" href="#level-${i + 1}"><span class="lv-dot" data-dot="${i + 1}">${i + 1}</span><span class="lv-card-text"><b>${L(`第 ${i + 1} 关`, `Level ${i + 1}`)}</b><small>${L(`${p.length} 个词`, `${p.length} words`)}</small></span>${CHEVRON}</a>`,
       )
       .join('')}</div>
 </section>
@@ -422,10 +449,10 @@ ${parts
     (p, i) => `<section class="level" id="level-${i + 1}" data-level="${i + 1}" aria-label="第 ${i + 1} 关">
 <div class="level-head">
 <span class="lv-num display">${i + 1}</span>
-<span class="lv-title"><span class="display">第 ${i + 1} 关</span><span class="lv-meta" data-meta data-count="${p.length}">${p.length} 个词 · 还没开始</span></span>
+<span class="lv-title"><span class="display">${L(`第 ${i + 1} 关`, `Level ${i + 1}`)}</span><span class="lv-meta" data-meta data-count="${p.length}">${L(`${p.length} 个词 · 还没开始`, `${p.length} words · Not started`)}</span></span>
 <span class="sp"></span>
 <span class="stars" data-stars aria-label="还没有星星"><span>★</span><span>★</span><span>★</span></span>
-<a class="btn-sm" href="${start}&amp;level=${i + 1}">闯这一关</a>
+<a class="btn-sm" href="${start}&amp;level=${i + 1}">${L('闯这一关', 'Play this level')}</a>
 </div>
 <div class="word-grid">
 ${p.map(wordCard).join('\n')}
@@ -435,8 +462,8 @@ ${p.map(wordCard).join('\n')}
   .join('\n')}
 <aside class="cta-foot">
 ${MOMO}
-<div class="cta-foot-text"><span class="display">看完了？来写一写吧！</span><small>在格子里手写，自动看笔顺打分，写错的词会进复习营地。</small></div>
-<a class="btn-orange" href="${start}">开始 ${level} 听写</a>
+<div class="cta-foot-text"><span class="display">${L('看完了？来写一写吧！', 'Ready? Time to write!')}</span><small>${L('在格子里手写，自动看笔顺打分，写错的词会进复习营地。', 'Write by hand in the boxes, get scored on stroke order, and mistakes go to Review Camp.')}</small></div>
+<a class="btn-orange" href="${start}">${L(`开始 ${level} 听写`, `Start ${level} dictation`)}</a>
 </aside>
 </main>`
     const html = page({
@@ -470,15 +497,15 @@ ${MOMO}
   // ---- overview ----------------------------------------------------------------
   {
     const url = '/words/'
-    const crumbItems = [['/', '小华听写'], [null, '词语表']]
+    const crumbItems = [['/', ['小华听写', 'Xiaohua']], [null, ['词语表', 'Word lists']]]
     const body = `<header class="hero">${WAVES}
 <div class="wrap hero-in">
 <div class="hero-text">
 ${crumbs(crumbItems)}
-<h1>华文听写词语表 P1–P6</h1>
-<p class="lead">新加坡小学 P1–P6 华文听写常用词，一共 ${words.length} 个。每个年级是一座岛，岛上的词分成一关一关，每个词都附拼音、英文意思和考卷例句，可以打印，也可以直接在线手写练习。</p>
+<h1>${L('华文听写词语表 P1–P6', 'Chinese Spelling Lists P1–P6')}</h1>
+<p class="lead zh-only">新加坡小学 P1–P6 华文听写常用词，一共 ${words.length} 个。每个年级是一座岛，岛上的词分成一关一关，每个词都附拼音、英文意思和考卷例句，可以打印，也可以直接在线手写练习。</p>
 <p class="lead-en" lang="en">Singapore primary school Chinese spelling word lists, P1 to P6 — ${words.length} words drawn from past exam papers.</p>
-<div class="actions"><a class="btn red" href="/">开始听写练习 ${ARROW}</a></div>
+<div class="actions"><a class="btn red" href="/">${L('开始听写练习', 'Start practising')} ${ARROW}</a></div>
 </div>
 </div>
 </header>
@@ -486,13 +513,13 @@ ${crumbs(crumbItems)}
 <section aria-label="选一座岛">
 <div class="islands">${LEVELS.map(
       (l) =>
-        `<a class="island-card" href="/words/${l.toLowerCase()}/"><div class="island" aria-hidden="true"><div class="island-body"><span class="display">${l}</span><small>${GRADE_CN[l]}岛</small></div>${FLAG}</div><span class="island-meta">${GRADE_CN[l]} · ${byLevel[l].length} 个词 · ${split(byLevel[l]).length} 关</span><span class="island-sample">${esc(byLevel[l].slice(0, 6).map((w) => w.word).join('、'))}……</span></a>`,
+        `<a class="island-card" href="/words/${l.toLowerCase()}/"><div class="island" aria-hidden="true"><div class="island-body"><span class="display">${l}</span><small>${L(`${GRADE_CN[l]}岛`, GRADE_EN[l])}</small></div>${FLAG}</div><span class="island-meta">${GRADE_CN[l]} · ${byLevel[l].length} 个词 · ${split(byLevel[l]).length} 关</span><span class="island-sample">${esc(byLevel[l].slice(0, 6).map((w) => w.word).join('、'))}……</span></a>`,
     ).join('')}</div>
 </section>
 <aside class="cta-foot">
 ${MOMO}
-<div class="cta-foot-text"><span class="display">选好岛了吗？来写一写吧！</span><small>在格子里手写，自动看笔顺打分，写错的词会进复习营地。</small></div>
-<a class="btn-orange" href="/">开始听写</a>
+<div class="cta-foot-text"><span class="display">${L('选好岛了吗？来写一写吧！', 'Picked an island? Time to write!')}</span><small>${L('在格子里手写，自动看笔顺打分，写错的词会进复习营地。', 'Write by hand in the boxes, get scored on stroke order, and mistakes go to Review Camp.')}</small></div>
+<a class="btn-orange" href="/">${L('开始听写', 'Start dictation')}</a>
 </aside>
 </main>`
     files.set(

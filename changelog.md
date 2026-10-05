@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0 — 2026-10-05
+- English interface: a 中文 / EN switch in the nav bar (also ?lang=en / ?lang=zh links for sharing). Menus, instructions, 墨墨's tips, grading feedback, level results, 复习营地, login / child PIN / profile dialogs and the footer are all translated; the characters, pinyin and example sentences stay Chinese. The choice is remembered and shared with the 词语表 pages.
+- Switching to English turns on each word's English meaning, so a child without Chinese at home knows what they are writing.
+- 词语表 pages render both languages and show one (no flash), with the same switch in their nav.
+- English display type uses Fredoka (ZCOOL KuaiLe stays for Chinese).
+- Sign-in email and confirmation page are bilingual.
+- 复习营地 notes are stored in Chinese and translated when shown, so switching language never leaves a mix.
+- Phones: the login button reads 登录 / Log in so the bar stays two rows. GA event language_switch.
+- The 出发 start button moved from the bottom of the sidebar onto the map's bottom-right corner (the lock note sits above it). On phones it sticks to the bottom of the screen while the island column is in view.
+- 游戏音效 setting (on by default, above 自动读词): a perfect word plays a rising chime then the 对了 voice, with a confetti burst from the writing frames; finishing a level (10 words) plays a longer fanfare with confetti from both sides. Sounds are synthesised with Web Audio (no files) and unlocked on the first tap for iOS; confetti (canvas-confetti) respects reduced motion. Turning sounds off silences the chime and 对了 but keeps the confetti.
+- Home: the sidebar's natural height now sets the map's height (no more stretched gaps between the sidebar cards); the map takes the remaining width and everything on it — islands, title, start button — scales by the tighter of its width and height, so the islands shrink with a shorter map instead of crowding. Tops and bottoms line up at every screen size. The footer's 按年级看词语表 now follows right under the map (the home no longer reserves a full screen height).
+- "游客模式 · 也能直接练" moved out of the nav bar (app and word-list pages) to small text under the start button, shown to guests only.
+
 ## 0.6.1 — 2026-10-05
 - GA events: a virtual page view per screen (/map, /practice, /complete, /camp — the app doesn't change the URL), level_start / level_end (grade, level, stars, correct, hints, gave_up, best_streak, duration), practice_start / practice_end for 随机探险 and 复习营地, login (method), login_open (where from) and login_info_open, child_profile_create, daily_goal_complete, and word_listen on the 词语表 pages. User property account_type (guest / parent / child) + grade. No emails, names or other personal data are sent.
 - Google Analytics (G-SDETN3W1KN) on the app (`index.html`) and every generated 词语表 page (`scripts/seo-pages.mjs`). The tag only loads on xiaohua.study (and subdomains), so `npm run dev` / localhost visits aren't counted.

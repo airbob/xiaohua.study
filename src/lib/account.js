@@ -2,6 +2,7 @@
 import { useSyncExternalStore } from 'react'
 import { api } from './api.js'
 import { track, setAudience } from './analytics.js'
+import { t } from './i18n.js'
 import { setScope, cacheProfile, flushOutbox, guestData, hasGuestData } from './storage.js'
 
 const KEY_ACTIVE = 'xhw.activeProfile'
@@ -87,7 +88,7 @@ export async function createProfile({ name, grade, avatar }) {
   if (first && hasGuestData()) {
     try {
       await api(`/api/profiles/${profile.id}/import`, { method: 'POST', body: guestData() })
-      set({ notice: `已把这台设备上的练习记录合并到「${profile.name}」` })
+      set({ notice: t('已把这台设备上的练习记录合并到「{name}」', { name: profile.name }) })
     } catch {
       /* not fatal */
     }

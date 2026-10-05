@@ -27,6 +27,9 @@
   color-scheme: light;
 }
 
+/* English interface: a rounded Latin display face; Chinese still falls back to ZCOOL KuaiLe */
+html:lang(en) { --display: 'Fredoka', 'ZCOOL KuaiLe', 'Noto Sans SC', sans-serif; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
@@ -106,13 +109,16 @@ a { color: inherit; }
 .nav-link:hover { color: #ffe08a; }
 .nav-link.on { background: var(--navy); color: #ffe08a; font-weight: 900; }
 .nav-spacer { flex: 1 1 20px; }
-.guest-note { font-size: 13px; color: #b9c0d4; margin-right: 10px; white-space: nowrap; }
+.lang-switch { display: flex; background: var(--navy); border: 2.5px solid var(--ink); border-radius: 12px; padding: 3px; gap: 2px; margin-right: 10px; }
+.lang-switch button { height: 30px; min-width: 40px; padding: 0 8px; border: none; border-radius: 9px; background: transparent; color: #c9d0e3; font-size: 13px; font-weight: 900; }
+.lang-switch button.on { background: #ffe08a; color: var(--ink); }
 .login-wrap { position: relative; display: block; }
 .login-btn {
   height: 44px; padding: 0 18px 0 14px; border-radius: 14px; background: #ffe08a; border: 3px solid var(--ink); box-shadow: 0 0 0 2px #ffe08a;
   display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 900; color: var(--ink); white-space: nowrap;
 }
 .login-btn:hover { background: #ffd65c; }
+.login-short { display: none; }
 .info-dot { position: absolute; top: -10px; right: -11px; width: 26px; height: 26px; padding: 0; border-radius: 999px; background: var(--sea); border: 2.5px solid var(--ink); display: grid; place-items: center; }
 .perks {
   position: absolute; top: 58px; right: -18px; width: 340px; max-width: calc(100vw - 24px); background: #fff; color: var(--ink); border: 4px solid var(--ink);
@@ -139,7 +145,10 @@ a { color: inherit; }
   .brand { margin-right: 4px; gap: 8px; }
   .brand-logo { width: 34px; height: 34px; font-size: 20px; border-radius: 10px; }
   .brand-name { font-size: 20px; }
-  .guest-note { display: none; }
+    .lang-switch { margin-right: 4px; }
+  .login-full { display: none; }
+  .login-short { display: inline; }
+  .lang-switch button { height: 26px; min-width: 32px; padding: 0 5px; font-size: 12px; }
   .login-btn { height: 38px; font-size: 14px; padding: 0 12px 0 10px; }
   .me-btn { height: 38px; }
   .me-name { font-size: 17px; }
@@ -158,25 +167,29 @@ a { color: inherit; }
   .brand-name { font-size: 18px; }
   .nav-link { height: 30px; font-size: 13px; }
   .login-btn, .me-btn { height: 34px; }
-  .guest-note { display: none; }
-}
+  }
 
 /* ---------- home: the island map ---------- */
 .home-page { background: var(--night); min-height: calc(100dvh - var(--nav-h, 64px)); }
 .island-home {
-  display: grid; grid-template-columns: minmax(0, min(100%, calc((100dvh - var(--nav-h, 64px) - 56px) * 1.05))) 360px; justify-content: center;
-  gap: 24px; padding: 28px; max-width: 1440px; margin: 0 auto; min-height: calc(100dvh - var(--nav-h, 64px));
+  display: grid; grid-template-columns: minmax(0, 1fr) 360px; justify-content: center;
+  gap: 24px; padding: 28px; max-width: 1440px; margin: 0 auto;
+  /* the sidebar's natural height sets the row; the map fills it, so tops and bottoms line up */
+  align-content: start;
 }
 .map {
   position: relative; border-radius: 32px; background: var(--sea); border: 4px solid var(--ink); overflow: hidden;
-  aspect-ratio: 836 / 796; width: 100%; align-self: start; container-type: inline-size;
+  width: 100%; align-self: stretch; min-height: 560px; container-type: size;
+  /* one scale unit for everything on the map: whichever of width / height is tighter, so the
+     islands shrink with a shorter map instead of crowding together */
+  --u: min(1cqw, 1.05cqh);
 }
 .map-art { position: absolute; inset: 0; width: 100%; height: 100%; }
-.map-title { position: absolute; left: 3.4cqw; top: 2.9cqw; display: flex; flex-direction: column; gap: 2px; z-index: 1; }
-.map-title h1 { font-family: var(--display); font-weight: 400; font-size: max(26px, 4.8cqw); color: var(--ink); line-height: 1.1; }
-.map-title p { font-size: max(12px, 1.8cqw); font-weight: 700; color: var(--sea-deep); }
+.map-title { position: absolute; left: calc(3.4 * var(--u)); top: calc(2.9 * var(--u)); display: flex; flex-direction: column; gap: 2px; z-index: 1; }
+.map-title h1 { font-family: var(--display); font-weight: 400; font-size: max(26px, calc(4.8 * var(--u))); color: var(--ink); line-height: 1.1; }
+.map-title p { font-size: max(12px, calc(1.8 * var(--u))); font-weight: 700; color: var(--sea-deep); }
 .islands { list-style: none; margin: 0; padding: 0; }
-.island-spot { position: absolute; left: var(--x); top: var(--y); width: 20.3%; height: 15.1%; }
+.island-spot { position: absolute; left: var(--x); top: var(--y); width: calc(20.3 * var(--u)); height: calc(14.4 * var(--u)); }
 .island {
   width: 100%; height: 100%; background: #f6e3b4; border: 4px solid var(--ink); box-shadow: inset 0 -14px 0 var(--green);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--ink);
@@ -192,12 +205,16 @@ a { color: inherit; }
 .island.current { background: #ffe08a; border-width: 5px; box-shadow: inset 0 -14px 0 var(--green), 0 0 0 8px #fff; transform: scale(1.1); }
 .island.current:hover { transform: scale(1.1) translateY(-3px); }
 .island.locked { background: #e6e1d3; box-shadow: inset 0 -14px 0 #a9bfa2; color: var(--muted); }
-.island-name { font-family: var(--display); font-size: max(22px, 4.1cqw); line-height: 1; }
-.island-stars { font-size: max(13px, 2.15cqw); }
-.island-sub { font-size: max(11px, 1.45cqw); font-weight: 700; }
+.island-name { font-family: var(--display); font-size: max(22px, calc(4.1 * var(--u))); line-height: 1; }
+.island-stars { font-size: max(13px, calc(2.15 * var(--u))); }
+.island-sub { font-size: max(11px, calc(1.45 * var(--u))); font-weight: 700; }
 .you-are-here { position: absolute; bottom: 92%; left: 62%; display: flex; flex-direction: column; align-items: center; z-index: 2; pointer-events: none; }
 .you-are-here span { background: #fff; border: 3px solid var(--ink); border-radius: 14px; padding: 4px 12px; font-size: 14px; font-weight: 900; white-space: nowrap; }
-.map-note { position: absolute; right: 2.9cqw; bottom: 2.9cqw; background: #fff; border: 3px solid var(--ink); border-radius: 16px; padding: 10px 14px; font-size: 13px; font-weight: 500; max-width: 260px; line-height: 1.5; }
+.map-corner { position: absolute; right: calc(2.9 * var(--u)); bottom: calc(2.9 * var(--u)); width: min(44%, 340px); display: flex; flex-direction: column; align-items: stretch; gap: 12px; z-index: 2; }
+.map-note { background: #fff; border: 3px solid var(--ink); border-radius: 16px; padding: 10px 14px; font-size: 13px; font-weight: 500; line-height: 1.5; }
+.cta-stack { display: flex; flex-direction: column; gap: 6px; }
+.guest-hint { margin: 0; text-align: center; font-size: 13px; font-weight: 700; color: var(--sea-deep); }
+.map-cta { height: auto; min-height: 72px; padding: 10px 16px; font-size: max(22px, calc(3.4 * var(--u))); line-height: 1.15; }
 
 .side { display: flex; flex-direction: column; gap: 16px; }
 .task { background: var(--cream); display: flex; flex-direction: column; gap: 10px; border-radius: 26px; }
@@ -562,7 +579,15 @@ a { color: inherit; }
 @media (max-width: 760px) {
   .island-home { grid-template-columns: minmax(0, 1fr); padding: 12px; gap: 14px; }
   .map { aspect-ratio: auto; padding: 18px 12px 24px; container-type: normal; }
-  .map-art, .map-note { display: none; }
+  .map-art { display: none; }
+  /* phones: the islands become a long column, so the start button sticks to the bottom of the
+     screen while the map is in view (the map must not clip it, hence overflow: visible) */
+  .map { overflow: visible; }
+  .map-corner { display: contents; }
+  .map-note { margin-top: 22px; }
+  .cta-stack { position: sticky; bottom: 12px; z-index: 3; margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .map-cta { min-height: 64px; font-size: 26px; }
+  .guest-hint { margin: 0; background: var(--cream); border: 2px solid var(--ink); border-radius: 999px; padding: 1px 12px; font-size: 12px; }
   .map-title { position: static; margin: 0 6px 18px; }
   .map-title h1 { font-size: 34px; }
   .map-title p { font-size: 13px; }

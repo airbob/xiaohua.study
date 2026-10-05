@@ -8,6 +8,8 @@ import { speakWord, speakSentence, canSpeak } from '../lib/speech.js'
 import { loadChar, preloadWord } from '../lib/chardata.js'
 import { gradeChar } from '../lib/grade.js'
 import { isPerfect, charNotes, wordScore } from '../lib/score.js'
+import { useT } from '../lib/i18n.js'
+import { soundCorrect, confettiBurst } from '../lib/celebrate.js'
 
 // keep in sync with the two-column media query in styles.css
 const SIDE_LAYOUT = '(min-width: 900px), (orientation: landscape) and (min-width: 640px)'
@@ -69,6 +71,7 @@ const TIPS = {
  * One set of words. title: e.g. 'P3 · 第 4 关'. onFinish(results, { bestStreak, ms }).
  */
 export default function Practice({ words, title, prefs, onQuit, onFinish }) {
+  const t = useT()
   const [wi, setWi] = useState(0)
   const [phase, setPhase] = useState('writing') // writing | grading | feedback
   const [chars, setChars] = useState([])
@@ -161,7 +164,14 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
       setStreak(s)
       setBestStreak((b) => Math.max(b, s))
     }
-    if (perfect) speakWord('对了')
+    if (perfect) {
+      // after the frames render, burst from them; the voice follows the chime
+      requestAnimationFrame(() => confettiBurst(area.current))
+      if (prefs.sound !== false) {
+        soundCorrect()
+        setTimeout(() => speakWord('对了'), 450)
+      }
+    }
   }
 
   const doPeek = () => {
@@ -203,11 +213,11 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
   return (
     <div className={`play-page ${feedback ? 'is-feedback' : ''}`}>
       <header className="play-head">
-        <button className="btn-chunky back" onClick={onQuit} aria-label="回到地图">
-          <Back /> <span className="hide-sm">地图</span>
+        <button className="btn-chunky back" onClick={onQuit} aria-label={t('回到地图')}>
+          <Back /> <span className="hide-sm">{t('地图')}</span>
         </button>
         <div className="level-badge display">{title}</div>
-        <ol className="track" aria-label={`第 ${wi + 1} 个词，共 ${words.length} 个`}>
+        <ol className="track" aria-label={t('第 {i} 个词，共 {n} 个', { i: wi + 1, n: words.length })}>
           {words.map((w, i) => {
             const r = results[i]
             const cls = r ? (isPerfect(r.chars) ? 'done' : 'miss') : i === wi ? 'now' : ''
@@ -215,7 +225,7 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
           })}
           <li className="track-chest" aria-hidden="true"><Chest size={34} /></li>
         </ol>
-        <div className="streak">连对 ×{streak}</div>
+        <div className="streak">{t('连对')} ×{streak}</div>
       </header>
 
       <div className="play-body">
@@ -226,9 +236,9 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
               {feedback && <div className="answer kai">{item.word}</div>}
               {canSpeak() && (
                 <div className="listen">
-                  <button className="btn-chunky orange" onClick={() => speakWord(item.word)}><Speaker /> {feedback ? '词语' : '再听词语'}</button>
+                  <button className="btn-chunky orange" onClick={() => speakWord(item.word)}><Speaker /> {feedback ? t('词语') : t('再听词语')}</button>
                   {item.example && (
-                    <button className="btn-chunky" onClick={() => speakSentence(item)}><Speaker /> {feedback ? '句子' : '听句子'}</button>
+                    <button className="btn-chunky" onClick={() => speakSentence(item)}><Speaker /> {feedback ? t('句子') : t('听句子')}</button>
                   )}
                 </div>
               )}
@@ -239,7 +249,7 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
             <div className="card example-card">
               {prefs.showExample && sentence && (
                 <>
-                  <div className="label">例句</div>
+                  <div className="label">{t('例句')}</div>
                   <p className="sentence">
                     {sentence.split(/（[　 ]+）/).map((part, i, arr) => (
                       <span key={i}>
@@ -256,16 +266,16 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
 
           {feedback && (
             <div className="card word-score">
-              <h2 className="display">这个词的成绩</h2>
+              <h2 className="display">{t('这个词的成绩')}</h2>
               {chars.map((c, i) => {
                 const v = c.skipped || c.status === 'blank' ? 'blank' : verdictOf(c)
-                const notes = charNotes(c).filter((n) => n !== '全对')
+                const notes = charNotes(c).filter((n) => n !== t('全对'))
                 return (
                   <div key={i} className={`score-row ${v}`}>
                     <span className="score-char kai">{c.char}</span>
                     <span className="score-text">
-                      <b>{CHAR_LABEL[v]}</b>
-                      <span>{v === 'ok' ? '笔顺正确' : notes.join('，')}</span>
+                      <b>{t(CHAR_LABEL[v])}</b>
+                      <span>{v === 'ok' ? t('笔顺正确') : notes.join(t('，'))}</span>
                     </span>
                     <Stars n={charStars(c)} />
                   </div>
@@ -280,13 +290,13 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
             {feedback ? (
               <MascotSays mood={perfect ? 'happy' : 'worried'} tone="cream">
                 {retrying
-                  ? perfect ? '这次写对啦！' : '再看看动画，多练几次就会了。'
+                  ? perfect ? t('这次写对啦！') : t('再看看动画，多练几次就会了。')
                   : perfect
-                    ? `全对！${streak >= 2 ? `已经连对 ${streak} 个了！` : '继续加油！'}`
-                    : <>「{item.word}」我帮你放进<b>复习营地</b>了，明天再来救它！</>}
+                    ? `${t('全对！')}${streak >= 2 ? t('已经连对 {n} 个了！', { n: streak }) : t('继续加油！')}`
+                    : t('「{w}」我帮你放进复习营地了，明天再来救它！', { w: item.word })}
               </MascotSays>
             ) : (
-              <MascotSays mood="look">{nudge ? '先在格子里写字哦！' : tip}</MascotSays>
+              <MascotSays mood="look">{nudge ? t('先在格子里写字哦！') : t(tip)}</MascotSays>
             )}
           </div>
         </section>
@@ -304,9 +314,9 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
                 peek={peek}
               />
               <p className={`pad-hint ${nudge ? 'nudge' : 'hide-sm'}`}>
-                {nudge ? '先在格子里写字哦！' : trace ? '橙色小点是下一笔的起点 · 写完按「写好了」' : `一格一个字 · 写完${glyphs.length > 1 ? `${glyphs.length}个字` : ''}按「写好了」`}
+                {nudge ? t('先在格子里写字哦！') : trace ? t('橙色小点是下一笔的起点 · 写完按「写好了」') : glyphs.length > 1 ? t('一格一个字 · 写完{n}个字按「写好了」', { n: glyphs.length }) : t('一格一个字 · 写完按「写好了」')}
               </p>
-              <span className="mode-tag hide-sm">{trace ? '描红热身' : '听写挑战'}</span>
+              <span className="mode-tag hide-sm">{trace ? t('描红热身') : t('听写挑战')}</span>
             </>
           ) : (
             <>
@@ -325,13 +335,13 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
                 ))}
               </div>
               <div className="card word-stars">
-                <span className="display">本词得分</span>
+                <span className="display">{t('本词得分')}</span>
                 <Stars n={wordStars(chars)} className="big" />
                 {!perfect && firstBad && (
-                  <button className="btn-chunky soft" onClick={retry}>再写一次</button>
+                  <button className="btn-chunky soft" onClick={retry}>{t('再写一次')}</button>
                 )}
               </div>
-              {retrying && <p className="pad-hint">再写一次是练习，不会改变这一关的成绩。</p>}
+              {retrying && <p className="pad-hint">{t('再写一次是练习，不会改变这一关的成绩。')}</p>}
             </>
           )}
         </section>
@@ -341,22 +351,22 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
         {!feedback ? (
           <>
             <div className="tools">
-              <button className="btn-chunky" onClick={() => pad.current?.undo()}><Undo /> 撤销</button>
-              <button className="btn-chunky" onClick={() => pad.current?.clear()}><Eraser /> 擦掉</button>
+              <button className="btn-chunky" onClick={() => pad.current?.undo()}><Undo /> {t('撤销')}</button>
+              <button className="btn-chunky" onClick={() => pad.current?.clear()}><Eraser /> {t('擦掉')}</button>
               {!trace && (
                 <button className="btn-chunky cream hint-btn" onClick={doPeek}>
-                  提示<span>扣 1 颗星</span>
+                  {t('提示')}<span>{t('扣 1 颗星')}</span>
                 </button>
               )}
-              <button className={`btn-chunky cream ${trace ? '' : 'show-sm'}`} onClick={giveUp}>不会写</button>
+              <button className={`btn-chunky cream ${trace ? '' : 'show-sm'}`} onClick={giveUp}>{t('不会写')}</button>
             </div>
             <button className="cta green" onClick={submit} disabled={phase === 'grading'}>
-              <Check /> {phase === 'grading' ? '批改中…' : '写好了'}
+              <Check /> {phase === 'grading' ? t('批改中…') : t('写好了')}
             </button>
-            {!trace && <button className="link-btn give-up hide-sm" onClick={giveUp}>不会写，看答案</button>}
+            {!trace && <button className="link-btn give-up hide-sm" onClick={giveUp}>{t('不会写，看答案')}</button>}
           </>
         ) : (
-          <button className="cta red" onClick={next}>{wi + 1 >= words.length ? '看成绩' : '下一个词'}</button>
+          <button className="cta red" onClick={next}>{wi + 1 >= words.length ? t('看成绩') : t('下一个词')}</button>
         )}
       </div>
 

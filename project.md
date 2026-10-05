@@ -26,6 +26,13 @@ its reference strokes: right / wrong stroke order / written wrong, with notes li
 `src/styles.css`; desktop/iPad use the mock's two columns, phones a single column with the map
 as a zigzag.
 
+## Languages
+Interface in 中文 (default) and English. Code strings are Chinese wrapped in `t('…')`
+(`src/lib/i18n.js`); English lives in `src/i18n/en.js`, keyed by the Chinese. After adding
+or changing UI text run `node scripts/i18n-keys.mjs` — it lists any string without English.
+Study content (characters, pinyin, examples) is never translated. Word-list pages render both
+languages via `L(zh, en)` in `scripts/seo-pages.mjs` and show one with CSS (html.lang-en).
+
 ## Analytics
 Google Analytics G-SDETN3W1KN, loaded only on xiaohua.study (index.html + scripts/seo-pages.mjs).
 Events go through `src/lib/analytics.js` (`track`, `trackScreen`, `setAudience`); never put

@@ -9,6 +9,7 @@ import { GRADES, levelWords, levelCount, gradeStatus } from './lib/levels.js'
 import { loadPrefs, savePrefs, loadLevels } from './lib/storage.js'
 import { useAccount, initAccount, showNotice } from './lib/account.js'
 import { track, trackScreen } from './lib/analytics.js'
+import { useT, setLang, getLang } from './lib/i18n.js'
 import { LoginModal, ProfileModal, AccountSheet, ChildSheet } from './components/AccountUI.jsx'
 
 const LOGIN_ERRORS = {
@@ -18,13 +19,23 @@ const LOGIN_ERRORS = {
   email_unverified: '这个 Google 账号的邮箱还没验证',
 }
 
-const DEFAULT_PREFS = { mode: 'dictation', showExample: true, showEnglish: false, autoSpeak: true }
+const DEFAULT_PREFS = { mode: 'dictation', showExample: true, showEnglish: false, autoSpeak: true, sound: true }
 
 export default function App() {
   const [prefs, setPrefs] = useState(() => ({ ...DEFAULT_PREFS, ...loadPrefs() }))
   const [screen, setScreen] = useState({ name: 'home' })
   const [modal, setModal] = useState(null) // login | account | profile-new | { edit: profile }
   const account = useAccount()
+  const t = useT()
+
+  // switching to English also turns on the English meaning of each word (once), so a child
+  // without Chinese at home still knows what they are writing
+  const changeLang = (l) => {
+    if (l === getLang()) return
+    track('language_switch', { to: l })
+    setLang(l)
+    if (l === 'en' && !prefs.showEnglish) updatePrefs({ showEnglish: true })
+  }
 
   // Load the session; handle the redirect back from Google / the emailed link.
   useEffect(() => {
@@ -36,7 +47,7 @@ export default function App() {
       q.delete('login_error')
       window.history.replaceState(null, '', window.location.pathname + (q.toString() ? `?${q}` : ''))
     }
-    if (err) showNotice(LOGIN_ERRORS[err] || '登录没有成功，请再试一次')
+    if (err) showNotice(LOGIN_ERRORS[err] || '登录没有成功，请再试一次') // shown through t() in Home
     if (loggedIn) track('login', { method: 'link_or_google' })
     initAccount()
   }, [])
@@ -137,7 +148,7 @@ export default function App() {
       <Practice
         key={screen.id}
         words={screen.words}
-        title={screen.kind === 'level' ? `${screen.level.grade} · 第 ${screen.level.level} 关` : screen.kind === 'review' ? '复习营地' : '随机探险'}
+        title={screen.kind === 'level' ? `${screen.level.grade} · ${t('第 {n} 关', { n: screen.level.level })}` : screen.kind === 'review' ? t('复习营地') : t('随机探险')}
         prefs={prefs}
         onQuit={screen.kind === 'review' ? () => go({ name: 'review' }) : home}
         onFinish={(results, stats) => go({ name: 'complete', kind: screen.kind, level: screen.level, words: screen.words, results, stats })}
@@ -151,6 +162,7 @@ export default function App() {
         kind={screen.kind}
         level={screen.level}
         stats={screen.stats}
+        sound={prefs.sound}
         onHome={home}
         onNext={screen.kind === 'level' ? nextLevel(screen.level) : null}
         onAgain={() => (screen.kind === 'review' ? go({ name: 'review' }) : play('mix'))}
@@ -177,7 +189,7 @@ export default function App() {
   const active = screen.name === 'home' ? 'map' : screen.name === 'review' ? 'camp' : 'none'
   return (
     <>
-      <NavBar active={active} onNav={nav} onAccount={setModal} />
+      <NavBar active={active} onNav={nav} onAccount={setModal} onLang={changeLang} />
       {page}
       {modals}
     </>

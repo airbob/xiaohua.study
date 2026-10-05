@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { RefGlyph } from './CharCompare.jsx'
+import { useT } from '../lib/i18n.js'
 
 /** Frame chrome around a writing cell (wood padding + borders), shared with the layout maths. */
 export const chrome = (cell) => Math.round(Math.min(12, Math.max(6, cell * 0.035))) + 7
@@ -22,6 +23,7 @@ export function Grid({ size }) {
  * getStrokes() → per cell, strokes in writing order, points normalised to 0..1 of the cell.
  */
 const FreePad = forwardRef(function FreePad({ glyphs, cell, cols, traceData, peek }, ref) {
+  const t = useT()
   const [strokes, setStrokes] = useState([]) // { cell, pts: [[x, y] in 0..1] }
   const wrap = useRef(null)
   const papers = useRef([])
@@ -109,7 +111,7 @@ const FreePad = forwardRef(function FreePad({ glyphs, cell, cols, traceData, pee
           <div key={i} className="frame" style={{ padding: fp }}>
             {data && (
               <div className="frame-badge">
-                {mine.length < data.medians.length ? `第 ${mine.length + 1} / ${data.medians.length} 笔` : '写完啦'}
+                {mine.length < data.medians.length ? t('第 {i} / {n} 笔', { i: mine.length + 1, n: data.medians.length }) : t('写完啦')}
               </div>
             )}
             <div className="paper" ref={(el) => (papers.current[i] = el)} style={{ width: cell, height: cell }}>

@@ -219,8 +219,9 @@ export async function emailStart(request, env) {
     body: JSON.stringify({
       from: env.MAIL_FROM,
       to: [email],
-      subject: `小华听写登录验证码 ${code}`,
-      text: `你的小华听写登录验证码是 ${code}（${LINK_MINUTES} 分钟内有效）。\n\n也可以直接打开这个链接登录：\n${link}\n\n如果不是你本人操作，忽略这封邮件即可。`,
+      // bilingual: the parent may use the site in Chinese or English
+      subject: `小华听写登录验证码 ${code} · Xiaohua login code`,
+      text: `你的小华听写登录验证码是 ${code}（${LINK_MINUTES} 分钟内有效）。\n也可以直接打开这个链接登录：\n${link}\n如果不是你本人操作，忽略这封邮件即可。\n\nYour Xiaohua login code is ${code} (valid for ${LINK_MINUTES} minutes).\nOr open this link to log in:\n${link}\nIf this wasn't you, just ignore this email.`,
       html: loginEmailHtml(code, link),
     }),
   })
@@ -232,13 +233,13 @@ export async function emailStart(request, env) {
 // scanners that prefetch links can't burn the one-time token.
 export async function emailVerifyPage(request) {
   const token = new URL(request.url).searchParams.get('token') || ''
-  return html(`<!doctype html><html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>登录小华听写</title>
+  return html(`<!doctype html><html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>登录小华听写 · Log in to Xiaohua</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fbf6ee;color:#1f2a44;font-family:-apple-system,'PingFang SC',sans-serif}
 form{background:#fff;padding:28px 24px;border-radius:16px;text-align:center;box-shadow:0 6px 20px rgba(31,42,68,.08);max-width:320px;margin:16px}
 button{background:#c8402f;color:#fff;border:0;border-radius:999px;font-size:17px;font-weight:600;padding:14px 28px;cursor:pointer}</style></head>
-<body><form method="post" action="/api/auth/email/verify"><h1 style="font-size:22px;margin:0 0 8px">登录小华听写</h1>
-<p style="color:#6b6f7d;margin:0 0 20px">点下面的按钮完成登录。</p><input type="hidden" name="token" value="${token.replace(/[^A-Za-z0-9_-]/g, '')}">
-<button type="submit">确认登录</button></form></body></html>`)
+<body><form method="post" action="/api/auth/email/verify"><h1 style="font-size:22px;margin:0 0 8px">登录小华听写<br><span style="font-size:16px;color:#6b6f7d">Log in to Xiaohua</span></h1>
+<p style="color:#6b6f7d;margin:0 0 20px">点下面的按钮完成登录。<br>Tap the button to finish logging in.</p><input type="hidden" name="token" value="${token.replace(/[^A-Za-z0-9_-]/g, '')}">
+<button type="submit">确认登录 · Log in</button></form></body></html>`)
 }
 
 export async function emailVerifyLink(request, env) {
@@ -274,10 +275,12 @@ async function finishEmailLogin(request, env, row, respond) {
 
 function loginEmailHtml(code, link) {
   return `<div style="font-family:-apple-system,'PingFang SC',sans-serif;color:#1f2a44;max-width:440px;margin:0 auto;padding:24px">
-<h1 style="font-size:20px;margin:0 0 12px">登录小华听写</h1>
-<p style="margin:0 0 8px">你的验证码：</p>
+<h1 style="font-size:20px;margin:0 0 4px">登录小华听写</h1>
+<p style="margin:0 0 14px;color:#6b6f7d">Log in to Xiaohua</p>
+<p style="margin:0 0 8px">你的验证码 · Your code:</p>
 <p style="font-size:32px;font-weight:700;letter-spacing:6px;margin:0 0 16px">${code}</p>
-<p style="margin:0 0 20px;color:#6b6f7d">20 分钟内有效。在原来的页面输入验证码，或者直接点下面的按钮：</p>
-<p><a href="${link}" style="display:inline-block;background:#c8402f;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:999px">登录小华听写</a></p>
-<p style="margin:24px 0 0;font-size:12px;color:#6b6f7d">如果不是你本人操作，忽略这封邮件即可。· xiaohua.study</p></div>`
+<p style="margin:0 0 6px;color:#6b6f7d">20 分钟内有效。在原来的页面输入验证码，或者直接点下面的按钮：</p>
+<p style="margin:0 0 20px;color:#6b6f7d">Valid for 20 minutes. Enter the code on the page you came from, or tap the button:</p>
+<p><a href="${link}" style="display:inline-block;background:#e4573d;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:999px">登录 · Log in</a></p>
+<p style="margin:24px 0 0;font-size:12px;color:#6b6f7d">如果不是你本人操作，忽略这封邮件即可。If this wasn't you, just ignore this email. · xiaohua.study</p></div>`
 }
