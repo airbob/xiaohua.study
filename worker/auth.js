@@ -16,7 +16,8 @@ export async function currentUser(request, env) {
   const token = parseCookies(request).sid
   if (!token) return null
   const row = await env.DB.prepare(
-    `SELECT u.id, u.email, u.name, u.plan, s.id AS sid, s.expires_at, s.profile_id, s.last_seen
+    `SELECT u.id, u.email, u.name, u.plan, u.plus_until, u.stripe_customer_id, u.stripe_subscription_id, u.subscription_status,
+            u.plan_interval, u.cancel_at_period_end, s.id AS sid, s.expires_at, s.profile_id, s.last_seen
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.id = ? AND s.expires_at > ?`,
   )
@@ -91,7 +92,7 @@ export async function childLogin(request, env) {
     .first()
   if (recent.by_email >= 5 || recent.by_ip >= 20) throw new HttpError(429, 'pin_locked')
 
-  const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()
+  const user = await env.DB.prepare('SELECT id, plus_until FROM users WHERE email = ?').bind(email).first()
   const { results: kids } = user
     ? await env.DB.prepare('SELECT id, name, grade, avatar, pin_hash FROM profiles WHERE user_id = ? AND pin_hash IS NOT NULL').bind(user.id).all()
     : { results: [] }
@@ -105,6 +106,8 @@ export async function childLogin(request, env) {
     // same answer whether the email exists or not
     throw new HttpError(400, 'pin_wrong')
   }
+  // children signing in on their own devices only makes sense with cloud progress (Plus)
+  if (!(user.plus_until > now())) throw new HttpError(402, 'plus_required')
   const setCookie = await startSession(request, env, user.id, match.id)
   return json({ ok: true, profile: { id: match.id, name: match.name, grade: match.grade, avatar: match.avatar } }, 200, { 'Set-Cookie': setCookie })
 }

@@ -1,6 +1,9 @@
 # Tasks
 
 ## This Week
+- [ ] Plus launch: Stripe account → product "小华听写 Plus" with SGD prices S$6.98/month and S$68.98/year → price ids in wrangler.jsonc; `wrangler secret put STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`; webhook https://xiaohua.study/api/billing/webhook; enable Customer Portal.
+- [ ] Fill in and publish docs/legal (terms, privacy: company, UEN, contact, refunds, GST), then LEGAL_READY = true.
+- [ ] Decide on a comp for existing accounts (e.g. 3 months of Plus).
 - [ ] (Later, optional) Google OAuth client — the button appears by itself once configured (redirect https://xiaohua.study/api/auth/google/callback) → GOOGLE_CLIENT_ID in wrangler.jsonc, GOOGLE_CLIENT_SECRET secret.
 - [x] Resend: xiaohua.study verified, RESEND_API_KEY set; real login email received 2026-10-04.
 - [ ] Try free writing on a real iPad with a student; tune grading thresholds (`TOL` in src/lib/grade.js).
@@ -9,13 +12,14 @@
 - [ ] Deploy to Cloudflare Pages.
 
 ## Backlog
-- [ ] Phase 2: spaced review of the 错词本 (due_at), progress page per child.
-- [ ] Phase 3: custom weekly 听写 lists from parents, weekly parent email.
+- [ ] Weekly parent report email (Plus).
+- [ ] Plus extras: custom pages, custom mascot.
 - [ ] After launch: verify xiaohua.study in Google Search Console, submit sitemap.xml.
 - [ ] Spot-check example sentences, add a manual override file.
 - [ ] Bundle stroke data locally / offline support (PWA).
 
 ## Done
+- [x] 小华听写 Plus: Stripe billing, free = 1 child local-only, 学习报告, 我的词组 (2026-10-05, not yet deployed).
 - [x] Parent accounts + child profiles + cloud 错词本 sync (D1, Worker API).
 - [x] Free-writing pad + whole-word grading (stroke shape, order, direction).
 - [x] Azure TTS pre-generation script + static clip playback with browser fallback.

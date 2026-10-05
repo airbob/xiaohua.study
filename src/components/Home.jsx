@@ -6,6 +6,7 @@ import { useT } from '../lib/i18n.js'
 import Mascot from './Mascot.jsx'
 import Footer from './Footer.jsx'
 import { Lock, Tent, Compass, Chest, Stars } from './Icons.jsx'
+import { PlusTag } from './Plus.jsx'
 
 export const DAILY_GOAL = 10
 
@@ -22,7 +23,7 @@ function homeGrade(child, history) {
   return last ? last.source.slice(0, 2) : 'P1'
 }
 
-export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) {
+export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview, onLists, onPlus }) {
   const t = useT()
   const account = useAccount()
   const v = account.version
@@ -131,6 +132,14 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) 
             <span>
               <span className="display">{t('复习营地')}</span>
               <span className="sub">{mistakes ? t('错词本 · {n} 个词等你救回来', { n: mistakes }) : t('错词本空空的，真棒！')}</span>
+            </span>
+          </button>
+
+          <button className="card big-link lists-link" onClick={account.plan?.plus ? onLists : onPlus}>
+            <span className="list-icon" aria-hidden="true">词</span>
+            <span>
+              <span className="display">{t('我的词组')} {!account.plan?.plus && <PlusTag />}</span>
+              <span className="sub">{t('练学校这周的听写词')}</span>
             </span>
           </button>
 

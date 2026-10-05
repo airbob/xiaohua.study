@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import Home from './components/Home.jsx'
 import NavBar from './components/NavBar.jsx'
+import ListsPage from './components/ListsPage.jsx'
+import ReportPage from './components/ReportPage.jsx'
+import { PlusModal } from './components/Plus.jsx'
 import Practice from './components/Practice.jsx'
 import LevelComplete from './components/LevelComplete.jsx'
 import ReviewCamp from './components/ReviewCamp.jsx'
 import { buildSet } from './lib/bank.js'
 import { GRADES, levelWords, levelCount, gradeStatus } from './lib/levels.js'
 import { loadPrefs, savePrefs, loadLevels } from './lib/storage.js'
-import { useAccount, initAccount, showNotice } from './lib/account.js'
+import { useAccount, initAccount, showNotice, awaitPlus } from './lib/account.js'
 import { track, trackScreen } from './lib/analytics.js'
 import { useT, setLang, getLang } from './lib/i18n.js'
 import { LoginModal, ProfileModal, AccountSheet, ChildSheet } from './components/AccountUI.jsx'
@@ -49,7 +52,18 @@ export default function App() {
     }
     if (err) showNotice(LOGIN_ERRORS[err] || '登录没有成功，请再试一次') // shown through t() in Home
     if (loggedIn) track('login', { method: 'link_or_google' })
-    initAccount()
+    // back from Stripe: Checkout (success / cancel) or the Customer Portal
+    const billing = q.get('billing')
+    if (billing) {
+      q.delete('billing')
+      window.history.replaceState(null, '', window.location.pathname + (q.toString() ? `?${q}` : ''))
+    }
+    if (billing === 'success') {
+      awaitPlus().then((ok) => {
+        showNotice(ok ? '欢迎加入 Plus！练习记录已经开始同步到云端。' : '付款成功，Plus 正在开通，稍等一下再刷新页面。')
+        if (ok) track('purchase', { currency: 'SGD', items: [{ item_name: 'plus' }] })
+      })
+    } else initAccount()
   }, [])
 
   // a parent with no child yet is asked (once per visit) to add one
@@ -82,13 +96,13 @@ export default function App() {
   }, [screen.name, screen.id])
 
   /** kind: 'level' (with level = { grade, level }) | 'mix' | 'review' (with words) */
-  const play = (kind, { level = null, words = null, from = 'app' } = {}) => {
+  const play = (kind, { level = null, words = null, from = 'app', title = null } = {}) => {
     const list = words || (kind === 'level' ? levelWords(level.grade, level.level) : buildSet('mix'))
     if (!list.length) return
     if (kind === 'level')
       track('level_start', { level_name: `${level.grade}-${level.level}`, grade: level.grade, level: level.level, mode: prefs.mode, from })
     else track('practice_start', { kind, words: list.length, mode: prefs.mode, from })
-    go({ name: 'practice', kind, level, words: list, id: Date.now() })
+    go({ name: 'practice', kind, level, words: list, title, id: Date.now() })
   }
   const startLevel = (grade, level, from) => play('level', { level: { grade, level }, from })
   const currentLevel = (grade) => gradeStatus(grade, loadLevels()[grade]).current
@@ -125,15 +139,36 @@ export default function App() {
       {modal === 'login' && <LoginModal onClose={() => setModal(null)} />}
       {modal === 'child' && <ChildSheet onClose={() => setModal(null)} />}
       {modal === 'account' && (
-        <AccountSheet onClose={() => setModal(null)} onEdit={(p) => setModal({ edit: p })} onAdd={() => setModal('profile-new')} />
+        <AccountSheet
+          onClose={() => setModal(null)}
+          onEdit={(p) => setModal({ edit: p })}
+          onAdd={() => setModal('profile-new')}
+          onPlus={(reason) => setModal({ plus: reason || true })}
+          onReport={(id) => {
+            setModal(null)
+            go({ name: 'report', profileId: id })
+          }}
+          onLists={() => {
+            setModal(null)
+            go({ name: 'lists' })
+          }}
+        />
       )}
       {(modal === 'profile-new' || modal === 'profile-first') && (
-        <ProfileModal first={modal === 'profile-first'} onClose={() => setModal(null)} />
+        <ProfileModal first={modal === 'profile-first'} onClose={() => setModal(null)} onPlus={(reason) => setModal({ plus: reason || true })} />
+      )}
+      {modal?.plus && (
+        <PlusModal
+          reason={modal.plus === true ? null : modal.plus}
+          onClose={() => setModal(null)}
+          onLogin={() => setModal('login')}
+        />
       )}
       {modal?.edit && (
         <ProfileModal
           profile={account.profiles.find((p) => p.id === modal.edit.id) || modal.edit}
           onClose={(why) => setModal(why === 'handover' ? null : 'account')}
+          onPlus={(reason) => setModal({ plus: reason || true })}
         />
       )}
     </>
@@ -148,10 +183,10 @@ export default function App() {
       <Practice
         key={screen.id}
         words={screen.words}
-        title={screen.kind === 'level' ? `${screen.level.grade} · ${t('第 {n} 关', { n: screen.level.level })}` : screen.kind === 'review' ? t('复习营地') : t('随机探险')}
+        title={screen.kind === 'level' ? `${screen.level.grade} · ${t('第 {n} 关', { n: screen.level.level })}` : screen.kind === 'review' ? t('复习营地') : screen.kind === 'custom' ? screen.title : t('随机探险')}
         prefs={prefs}
-        onQuit={screen.kind === 'review' ? () => go({ name: 'review' }) : home}
-        onFinish={(results, stats) => go({ name: 'complete', kind: screen.kind, level: screen.level, words: screen.words, results, stats })}
+        onQuit={screen.kind === 'review' ? () => go({ name: 'review' }) : screen.kind === 'custom' ? () => go({ name: 'lists' }) : home}
+        onFinish={(results, stats) => go({ name: 'complete', kind: screen.kind, level: screen.level, title: screen.title, words: screen.words, results, stats })}
       />
     )
   else if (screen.name === 'complete')
@@ -165,14 +200,28 @@ export default function App() {
         sound={prefs.sound}
         onHome={home}
         onNext={screen.kind === 'level' ? nextLevel(screen.level) : null}
-        onAgain={() => (screen.kind === 'review' ? go({ name: 'review' }) : play('mix'))}
+        title={screen.title}
+        onAgain={() =>
+          screen.kind === 'review' ? go({ name: 'review' }) : screen.kind === 'custom' ? play('custom', { words: screen.words, title: screen.title }) : play('mix')
+        }
         onReview={(wrong) => play('review', { words: wrong.map(({ chars, ...w }) => w) })}
         onLogin={() => {
           track('login_open', { from: 'complete' })
           setModal('login')
         }}
+        onPlus={() => setModal({ plus: '升级 Plus，练习记录就会存到云端，换设备也能接着练。' })}
       />
     )
+  else if (screen.name === 'lists')
+    page = (
+      <ListsPage
+        onBack={home}
+        onPlay={(words, title) => play('custom', { words, title })}
+        onUpgrade={() => setModal({ plus: '自定义词组是 Plus 功能。' })}
+      />
+    )
+  else if (screen.name === 'report')
+    page = <ReportPage profileId={screen.profileId} onBack={home} onPick={(id) => go({ name: 'report', profileId: id })} />
   else if (screen.name === 'review')
     page = <ReviewCamp prefs={prefs} onPrefs={updatePrefs} onBack={home} onStart={(words) => play('review', { words })} />
   else
@@ -183,13 +232,15 @@ export default function App() {
         onStartLevel={startLevel}
         onMix={() => play('mix')}
         onReview={() => go({ name: 'review' })}
+        onLists={() => go({ name: 'lists' })}
+        onPlus={() => setModal({ plus: true })}
       />
     )
 
   const active = screen.name === 'home' ? 'map' : screen.name === 'review' ? 'camp' : 'none'
   return (
     <>
-      <NavBar active={active} onNav={nav} onAccount={setModal} onLang={changeLang} />
+      <NavBar active={active} onNav={nav} onAccount={setModal} onLang={changeLang} onPlus={() => setModal({ plus: true })} />
       {page}
       {modals}
     </>

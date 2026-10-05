@@ -4,6 +4,8 @@
 // Secrets (set once, never in this file):
 //   npx wrangler secret put GOOGLE_CLIENT_SECRET
 //   npx wrangler secret put RESEND_API_KEY
+//   npx wrangler secret put STRIPE_SECRET_KEY
+//   npx wrangler secret put STRIPE_WEBHOOK_SECRET
 // For local dev put the same keys in .dev.vars (gitignored).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -28,7 +30,10 @@
   "vars": {
     "SITE_URL": "https://xiaohua.study",
     "GOOGLE_CLIENT_ID": "",
-    "MAIL_FROM": "小华听写 <login@xiaohua.study>"
+    "MAIL_FROM": "小华听写 <login@xiaohua.study>",
+    // Stripe Price ids for 小华听写 Plus (S$6.98 / month, S$68.98 / year) — set once created in Stripe
+    "STRIPE_PRICE_MONTH": "",
+    "STRIPE_PRICE_YEAR": ""
   },
   "observability": { "enabled": true }
 }

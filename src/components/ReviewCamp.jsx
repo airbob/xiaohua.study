@@ -9,6 +9,7 @@ import Footer from './Footer.jsx'
 import { GRADES } from '../lib/levels.js'
 import { useT } from '../lib/i18n.js'
 import { noteText } from '../lib/score.js'
+import { customWordInfo } from './ListsPage.jsx'
 
 const byWord = new Map(WORDS.map((w) => [w.word, w]))
 const ROUND = 10
@@ -23,11 +24,12 @@ export default function ReviewCamp({ prefs, onPrefs, onBack, onStart }) {
   const [filter, setFilter] = useState('all')
 
   const items = Object.entries(mistakes)
-    .map(([word, m]) => ({ ...m, word, info: byWord.get(word) }))
+    .map(([word, m]) => ({ ...m, word, info: byWord.get(word) || customWordInfo(word) }))
     .filter((x) => x.info)
     .sort((a, b) => (b.last || 0) - (a.last || 0))
   const counts = Object.fromEntries(GRADES.map((g) => [g, items.filter((x) => x.info.grade === g).length]))
-  const shown = filter === 'all' ? items : items.filter((x) => x.info.grade === filter)
+  const customCount = items.filter((x) => !x.info.grade).length
+  const shown = filter === 'all' ? items : filter === 'custom' ? items.filter((x) => !x.info.grade) : items.filter((x) => x.info.grade === filter)
   const round = shown.slice(0, ROUND)
 
   return (
@@ -47,6 +49,9 @@ export default function ReviewCamp({ prefs, onPrefs, onBack, onStart }) {
             {GRADES.filter((g) => counts[g]).map((g) => (
               <button key={g} role="tab" aria-selected={filter === g} className={filter === g ? 'on' : ''} onClick={() => setFilter(g)}>{g} · {counts[g]}</button>
             ))}
+            {customCount > 0 && (
+              <button role="tab" aria-selected={filter === 'custom'} className={filter === 'custom' ? 'on' : ''} onClick={() => setFilter('custom')}>{t('词组')} · {customCount}</button>
+            )}
           </div>
         )}
       </header>
@@ -68,7 +73,7 @@ export default function ReviewCamp({ prefs, onPrefs, onBack, onStart }) {
                   <span className={`dot ${x.streak >= 2 ? 'on' : ''}`} />
                   {x.streak >= 1 ? t('再对 1 次就回岛') : t('刚到营地')}
                 </span>
-                <span className="grade-tag">{x.info.grade}</span>
+                <span className="grade-tag">{x.info.grade || t('词组')}</span>
               </button>
             )
           })}

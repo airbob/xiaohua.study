@@ -23,10 +23,13 @@ for (const f of files) {
   // t('…'), T('…'), tIn(x, '…')
   for (const m of src.matchAll(/\b(?:t|T|tIn\([^,]+,)\s*\(?\s*'([^']+)'/g)) if (has(m[1])) keys.add(m[1])
   // strings that reach t() indirectly: tables of labels, tips, errors, notices, device names
-  for (const block of src.matchAll(/(?:CHAR_LABEL|TIPS|LINKS|PERKS|ERRORS|LOGIN_ERRORS|STATUS_LABEL)\s*=\s*([\[{][\s\S]*?\n[\]}])/g))
+  for (const block of src.matchAll(/(?:CHAR_LABEL|TIPS|LINKS|PERKS|ERRORS|LOGIN_ERRORS|STATUS_LABEL|FEATURES)\s*=\s*([\[{][\s\S]*?\n[\]}])/g))
     for (const m of block[1].matchAll(/'([^']+)'/g)) if (has(m[1])) keys.add(m[1])
   for (const m of src.matchAll(/(?:showNotice|notice:)\s*\(?\s*'([^']+)'/g)) if (has(m[1])) keys.add(m[1])
   for (const m of src.matchAll(/LOGIN_ERRORS\[err\] \|\| '([^']+)'/g)) keys.add(m[1])
+  // upgrade reasons passed to the Plus sheet, and notices chosen with a ternary
+  for (const m of src.matchAll(/(?:onPlus\??\.?\(|plus: )'([^']+)'/g)) if (has(m[1])) keys.add(m[1])
+  for (const line of src.split('\n')) if (/showNotice\(/.test(line)) for (const m of line.matchAll(/'([^']+)'/g)) if (has(m[1])) keys.add(m[1])
 }
 // reached indirectly: device labels from the Worker (worker/auth.js deviceLabel), the stored
 // 复习营地 note '听写时没写出来' (noteText), the list joiner and the generic API error

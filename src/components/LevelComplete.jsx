@@ -27,7 +27,7 @@ export function mistakeOf(r) {
  * End of a set. kind: 'level' | 'mix' | 'review'; level: { grade, level } for island levels.
  * Records the set (local + server) once.
  */
-export default function LevelComplete({ results, kind, level, stats, sound = true, onHome, onNext, onAgain, onReview, onLogin }) {
+export default function LevelComplete({ results, kind, level, title: listTitle, stats, sound = true, onPlus, onHome, onNext, onAgain, onReview, onLogin }) {
   const t = useT()
   const account = useAccount()
   const n = results.length
@@ -53,8 +53,9 @@ export default function LevelComplete({ results, kind, level, stats, sound = tru
         ...(isPerfect(r.chars) ? {} : mistakeOf(r)),
       })),
       score,
-      kind === 'level' ? `${level.grade}:${level.level}` : kind,
+      kind === 'level' ? `${level.grade}:${level.level}` : kind === 'custom' ? 'list' : kind,
       kind === 'level' ? { ...level, stars, correct } : null,
+      stats.ms,
     )
     const summary = {
       correct,
@@ -70,7 +71,7 @@ export default function LevelComplete({ results, kind, level, stats, sound = tru
     if (before < DAILY_GOAL && wordsToday() >= DAILY_GOAL) track('daily_goal_complete', { words: wordsToday() })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const title = kind === 'level' ? t('第 {n} 关 通关！', { n: level.level }) : kind === 'review' ? t('复习完成！') : t('探险完成！')
+  const title = kind === 'level' ? t('第 {n} 关 通关！', { n: level.level }) : kind === 'review' ? t('复习完成！') : kind === 'custom' ? t('「{name}」练完了！', { name: listTitle }) : t('探险完成！')
 
   return (
     <div className="complete-page">
@@ -123,6 +124,12 @@ export default function LevelComplete({ results, kind, level, stats, sound = tru
           </div>
         )}
 
+        {account.status === 'signed-in' && !account.child && !account.plan?.plus && (
+          <button className="save-nudge" onClick={onPlus}>
+            {t('练习记录只保存在这台设备上。')}<b>{t('升级 Plus 存到云端 →')}</b>
+          </button>
+        )}
+
         {account.status === 'guest' && wrong.length > 0 && (
           <button className="save-nudge" onClick={onLogin}>
             {t('想把复习营地和星星保存下来？')}<b>{t('家长登录 →')}</b>
@@ -134,7 +141,7 @@ export default function LevelComplete({ results, kind, level, stats, sound = tru
           {kind === 'level' && onNext ? (
             <button className="cta red" onClick={onNext}>{t('下一关 →')}</button>
           ) : (
-            <button className="cta red" onClick={onAgain}>{kind === 'review' ? t('继续复习') : t('再来一组')}</button>
+            <button className="cta red" onClick={onAgain}>{kind === 'review' ? t('继续复习') : kind === 'custom' ? t('再练一次') : t('再来一组')}</button>
           )}
         </div>
       </div>

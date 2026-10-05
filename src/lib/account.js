@@ -3,10 +3,10 @@ import { useSyncExternalStore } from 'react'
 import { api } from './api.js'
 import { track, setAudience } from './analytics.js'
 import { t } from './i18n.js'
-import { setScope, cacheProfile, flushOutbox, guestData, hasGuestData } from './storage.js'
+import { setScope, setSync, cacheProfile, flushOutbox, guestData, hasGuestData, copyGuestTo, localProfileData, isUploaded, markUploaded } from './storage.js'
 
 const KEY_ACTIVE = 'xhw.activeProfile'
-let state = { status: 'loading', child: false, user: null, profiles: [], activeId: null, version: 0, notice: null }
+let state = { status: 'loading', child: false, user: null, profiles: [], activeId: null, plan: { plus: false }, version: 0, notice: null }
 const listeners = new Set()
 
 function set(patch) {
@@ -41,13 +41,18 @@ const remembered = () => {
 
 export async function initAccount() {
   try {
-    const { user, profiles, child } = await api('/api/me')
-    const id = child ? profiles[0]?.id : profiles.find((p) => p.id === remembered())?.id || profiles[0]?.id || null
+    const { user, profiles, child, plan = { plus: false } } = await api('/api/me')
+    // free accounts practise with their first child only; the others wait for Plus
+    const usable = child || plan.plus ? profiles : profiles.slice(0, 1)
+    const id = usable.find((p) => p.id === remembered())?.id || usable[0]?.id || null
     setScope(id)
-    set({ status: 'signed-in', child: !!child, user, profiles, activeId: id })
-    setAudience({ type: child ? 'child' : 'parent', grade: profiles.find((p) => p.id === id)?.grade })
-    flushOutbox()
-    if (id) await refreshProgress(id)
+    setSync(plan.plus)
+    set({ status: 'signed-in', child: !!child, user, profiles, activeId: id, plan })
+    setAudience({ type: child ? 'child' : plan.plus ? 'plus' : 'parent', grade: profiles.find((p) => p.id === id)?.grade })
+    if (plan.plus) {
+      flushOutbox()
+      if (id) await syncProfile(id)
+    }
   } catch (e) {
     setScope(null)
     // offline with a remembered profile: keep practising against the local cache
@@ -61,6 +66,31 @@ export async function initAccount() {
   }
 }
 
+/** Plus: upload what this device practised before (once), then take the cloud copy. */
+const uploading = new Map() // profile id → in-flight upload, so overlapping refreshes upload once
+async function syncProfile(id) {
+  if (!isUploaded(id)) {
+    if (!uploading.has(id)) uploading.set(id, uploadLocal(id).finally(() => uploading.delete(id)))
+    if (!(await uploading.get(id))) return
+  }
+  await refreshProgress(id)
+}
+
+async function uploadLocal(id) {
+  if (!isUploaded(id)) {
+    const local = localProfileData(id)
+    if (Object.keys(local.seen).length) {
+      try {
+        await api(`/api/profiles/${id}/import`, { method: 'POST', body: local })
+      } catch {
+        return false // try again next time
+      }
+    }
+    markUploaded(id)
+  }
+  return true
+}
+
 async function refreshProgress(id) {
   try {
     const data = await api(`/api/profiles/${id}/progress`)
@@ -71,12 +101,17 @@ async function refreshProgress(id) {
   }
 }
 
+/** Children beyond the first are paused on the free plan (their data is kept). */
+export const isPaused = (id) => !state.child && !state.plan.plus && state.profiles.findIndex((p) => p.id === id) > 0
+
 export async function selectProfile(id) {
+  if (id && isPaused(id)) return false
   remember(id)
   setScope(id)
   set({ activeId: id })
-  setAudience({ type: state.child ? 'child' : 'parent', grade: state.profiles.find((p) => p.id === id)?.grade })
-  if (id) await refreshProgress(id)
+  setAudience({ type: state.child ? 'child' : state.plan.plus ? 'plus' : 'parent', grade: state.profiles.find((p) => p.id === id)?.grade })
+  if (id && state.plan.plus) await syncProfile(id)
+  return true
 }
 
 export async function createProfile({ name, grade, avatar }) {
@@ -84,15 +119,19 @@ export async function createProfile({ name, grade, avatar }) {
   const { profile } = await api('/api/profiles', { method: 'POST', body: { name, grade, avatar } })
   track('child_profile_create', { grade, first_child: first })
   set({ profiles: [...state.profiles, profile] })
-  // the first child inherits whatever was practised on this device before signing in
+  // the first child inherits whatever was practised on this device before signing in —
+  // into the cloud on Plus, into the child's device-only record on the free plan
   if (first && hasGuestData()) {
-    try {
-      await api(`/api/profiles/${profile.id}/import`, { method: 'POST', body: guestData() })
-      set({ notice: t('已把这台设备上的练习记录合并到「{name}」', { name: profile.name }) })
-    } catch {
-      /* not fatal */
-    }
+    if (state.plan.plus) {
+      try {
+        await api(`/api/profiles/${profile.id}/import`, { method: 'POST', body: guestData() })
+      } catch {
+        /* not fatal */
+      }
+    } else copyGuestTo(profile.id)
+    set({ notice: t('已把这台设备上的练习记录合并到「{name}」', { name: profile.name }) })
   }
+  if (state.plan.plus) markUploaded(profile.id)
   await selectProfile(profile.id)
   return profile
 }
@@ -178,3 +217,37 @@ export const verifyEmailCode = (email, code) =>
     track('login', { method: 'email_code' })
     return r
   })
+
+// ---- 小华听写 Plus ------------------------------------------------------------------
+
+/** Off to Stripe Checkout. interval: 'month' | 'year'. */
+export async function startCheckout(interval) {
+  track('begin_checkout', { interval, currency: 'SGD', value: interval === 'year' ? 68.98 : 6.98 })
+  const { url } = await api('/api/billing/checkout', { method: 'POST', body: { interval } })
+  window.location.href = url
+}
+
+/** Stripe Customer Portal: change plan, update card, cancel. */
+export async function openPortal() {
+  const { url } = await api('/api/billing/portal', { method: 'POST' })
+  window.location.href = url
+}
+
+/** After Stripe sends the family back: the webhook may land a moment later, so look a few times. */
+export async function awaitPlus() {
+  for (let i = 0; i < 6; i++) {
+    await initAccount()
+    if (state.plan.plus) return true
+    await new Promise((r) => setTimeout(r, 1500))
+  }
+  return false
+}
+
+export const fetchLists = () => api('/api/lists').then((r) => r.lists)
+export const saveList = (list) =>
+  list.id
+    ? api(`/api/lists/${list.id}`, { method: 'PUT', body: { name: list.name, words: list.words } }).then((r) => r.list)
+    : api('/api/lists', { method: 'POST', body: { name: list.name, words: list.words } }).then((r) => r.list)
+export const removeList = (id) => api(`/api/lists/${id}`, { method: 'DELETE' })
+
+export const fetchReport = (profileId) => api(`/api/profiles/${profileId}/report?tz=${new Date().getTimezoneOffset()}`)

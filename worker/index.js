@@ -3,6 +3,8 @@
 import { json, fail, HttpError } from './util.js'
 import * as auth from './auth.js'
 import * as api from './api.js'
+import * as billing from './billing.js'
+import * as plus from './plus.js'
 
 export default {
   async fetch(request, env) {
@@ -41,6 +43,8 @@ async function route(request, env, url) {
   if (p === '/api/auth/email/verify' && m === 'POST') return auth.emailVerifyLink(request, env)
   if (p === '/api/auth/email/code' && m === 'POST') return auth.emailVerifyCode(request, env)
   if (p === '/api/auth/child' && m === 'POST') return auth.childLogin(request, env)
+  // Stripe calls this directly; it is authenticated by its signature
+  if (p === '/api/billing/webhook' && m === 'POST') return billing.webhook(request, env)
   if (p === '/api/auth/logout' && m === 'POST') return auth.logout(request, env)
 
   // ---- everything else needs a parent session ----
@@ -55,6 +59,13 @@ async function authed(request, env, user, p, m) {
   if (p === '/api/me' && m === 'GET') return api.me(env, user)
   if (p === '/api/account' && m === 'DELETE') return api.deleteAccount(env, user)
   if (p === '/api/profiles' && m === 'POST') return api.createProfile(request, env, user)
+  if (p === '/api/billing/checkout' && m === 'POST') return billing.checkout(request, env, user)
+  if (p === '/api/billing/portal' && m === 'POST') return billing.portal(request, env, user)
+  if (p === '/api/lists' && m === 'GET') return plus.getLists(env, user)
+  if (p === '/api/lists' && m === 'POST') return plus.createList(request, env, user)
+  const lm = p.match(/^\/api\/lists\/([0-9a-f-]{36})$/)
+  if (lm && m === 'PUT') return plus.updateList(request, env, user, lm[1])
+  if (lm && m === 'DELETE') return plus.deleteList(env, user, lm[1])
 
   const pm = p.match(/^\/api\/profiles\/([0-9a-f-]{36})(\/[a-z]+)?$/)
   if (pm) {
@@ -68,6 +79,7 @@ async function authed(request, env, user, p, m) {
     if (sub === '/devices' && m === 'GET') return api.listDevices(env, user, id)
     if (sub === '/devices' && m === 'DELETE') return api.revokeDevices(env, user, id)
     if (sub === '/handover' && m === 'POST') return api.handover(request, env, user, id)
+    if (sub === '/report' && m === 'GET') return plus.report(request, env, user, id)
   }
   return fail(404, 'not_found')
 }

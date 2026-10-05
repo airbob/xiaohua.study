@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   useAccount, createProfile, updateProfile, deleteProfile, selectProfile, signOut, deleteAccount,
-  sendEmailLink, verifyEmailCode, initAccount, childSignIn, familyEmail, handOver, setPin, listDevices, revokeDevices,
+  sendEmailLink, verifyEmailCode, initAccount, childSignIn, familyEmail, handOver, setPin, listDevices, revokeDevices, isPaused, openPortal,
 } from '../lib/account.js'
 import { LEVELS } from '../lib/bank.js'
 import { api } from '../lib/api.js'
 import { t, useT, getLang } from '../lib/i18n.js'
+import { PlusTag } from './Plus.jsx'
 
 let providersCache = null
 const loadProviders = () => (providersCache ||= api('/api/auth/providers').catch(() => ({ google: false, email: true })))
@@ -27,6 +28,7 @@ const ERRORS = {
   pin_locked: '试错太多次了，15 分钟后再试',
   pin_too_simple: '这个 PIN 太简单了，换一个',
   pin_taken: '另一个孩子已经用了这个 PIN，换一个',
+  plus_required: '这是 Plus 功能，请爸爸妈妈先升级 Plus',
 }
 const msg = (e) => t(ERRORS[e?.code] || '出错了，请再试一次')
 
@@ -323,7 +325,8 @@ function DevicesSection({ profile }) {
   )
 }
 
-export function ProfileModal({ profile, first, onClose }) {
+export function ProfileModal({ profile, first, onClose, onPlus }) {
+  const account = useAccount()
   useT()
   const [name, setName] = useState(profile?.name || '')
   const [grade, setGrade] = useState(profile?.grade || 'P1')
@@ -341,6 +344,7 @@ export function ProfileModal({ profile, first, onClose }) {
       else await createProfile({ name, grade, avatar })
       onClose()
     } catch (err) {
+      if (err.code === 'plus_required' && onPlus) return onPlus('免费版只能添加 1 个孩子，Plus 最多 6 个。')
       setError(msg(err))
     } finally {
       setBusy(false)
@@ -382,7 +386,18 @@ export function ProfileModal({ profile, first, onClose }) {
         </div>
         <button className="btn primary" disabled={busy || !name.trim()}>{busy ? t('保存中…') : t('保存')}</button>
       </form>
-      {profile && (
+      {profile && !account.plan?.plus && (
+        <div className="stack section-sep">
+          <div className="plus-inline">
+            <span>
+              <b>{t('孩子用 PIN 自己登录')}</b> <PlusTag />
+              <span className="muted small">{t('设好 PIN，孩子在自己的平板上也能登录，进度同步。')}</span>
+            </span>
+            <button type="button" className="btn small-btn" onClick={() => onPlus?.('孩子登录和多设备同步是 Plus 功能。')}>{t('了解 Plus')}</button>
+          </div>
+        </div>
+      )}
+      {profile && account.plan?.plus && (
         <div className="stack section-sep">
           <PinSection profile={profile} />
           <DevicesSection profile={profile} />
@@ -412,17 +427,55 @@ export function ProfileModal({ profile, first, onClose }) {
   )
 }
 
-export function AccountSheet({ onClose, onEdit, onAdd }) {
+export function AccountSheet({ onClose, onEdit, onAdd, onPlus, onReport, onLists }) {
   useT()
   const a = useAccount()
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
+  const plus = a.plan?.plus
+  const until = a.plan?.until ? new Date(a.plan.until).toLocaleDateString(getLang() === 'en' ? 'en-SG' : 'zh-CN') : ''
   return (
     <Modal title={t('谁在练习？')} onClose={onClose}>
+      <div className={`plan-box ${plus ? 'is-plus' : ''}`}>
+        {plus ? (
+          <>
+            <span>
+              <b>{t('小华听写')} <span className="plus-word">Plus</span></b>
+              <span className="muted small">{a.plan.cancelAtPeriodEnd ? t('订阅会在 {d} 结束', { d: until }) : t('下次续费：{d}', { d: until })}</span>
+            </span>
+            {a.plan.canManage && (
+              <button className="btn small-btn" onClick={() => openPortal().catch(() => {})}>{t('管理订阅')}</button>
+            )}
+          </>
+        ) : (
+          <>
+            <span>
+              <b>{t('免费版')}</b>
+              <span className="muted small">{t('1 个孩子 · 记录保存在这台设备上')}</span>
+            </span>
+            <button className="btn primary small-btn" onClick={() => onPlus()}>{t('升级 Plus')}</button>
+          </>
+        )}
+      </div>
+      <div className="sheet-links">
+        <button className="btn" onClick={() => (plus ? onReport(a.activeId) : onPlus('家长报告是 Plus 功能。'))} disabled={!a.activeId}>
+          {t('学习报告')} {!plus && <PlusTag />}
+        </button>
+        <button className="btn" onClick={() => (plus ? onLists() : onPlus('自定义词组是 Plus 功能。'))}>
+          {t('我的词组')} {!plus && <PlusTag />}
+        </button>
+      </div>
       <ul className="profile-list">
         {a.profiles.map((p) => (
-          <li key={p.id} className={p.id === a.activeId ? 'on' : ''}>
-            <button className="profile-pick" onClick={() => { selectProfile(p.id); onClose() }}>
+          <li key={p.id} className={`${p.id === a.activeId ? 'on' : ''} ${isPaused(p.id) ? 'paused' : ''}`}>
+            <button
+              className="profile-pick"
+              onClick={() => {
+                if (isPaused(p.id)) return onPlus('免费版只能练 1 个孩子。升级 Plus，其他孩子的记录马上恢复。')
+                selectProfile(p.id)
+                onClose()
+              }}
+            >
               <span className="chip-avatar big">{p.avatar}</span>
               <span>
                 <b>{p.name}</b>
@@ -432,12 +485,17 @@ export function AccountSheet({ onClose, onEdit, onAdd }) {
                 </span>
               </span>
               {p.id === a.activeId && <span className="tag ok">{t('正在练习')}</span>}
+              {isPaused(p.id) && <span className="tag">{t('已暂停')}</span>}
             </button>
             <button className="btn ghost small-btn" onClick={() => onEdit(p)} aria-label={t('修改{name}', { name: p.name })}>{t('修改')}</button>
           </li>
         ))}
       </ul>
-      {a.profiles.length < 6 && <button className="btn" onClick={onAdd}>{t('＋ 添加孩子')}</button>}
+      {a.profiles.length < 6 && (
+        <button className="btn" onClick={() => (plus || a.profiles.length === 0 ? onAdd() : onPlus('免费版只能添加 1 个孩子，Plus 最多 6 个。'))}>
+          {t('＋ 添加孩子')} {!plus && a.profiles.length > 0 && <PlusTag />}
+        </button>
+      )}
       <div className="sheet-foot">
         <p className="muted small">{t('已登录：')}{a.user?.email}</p>
         <button className="btn ghost" onClick={async () => { await signOut(); onClose() }}>{t('退出登录')}</button>

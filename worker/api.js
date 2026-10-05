@@ -1,10 +1,12 @@
 // Child profiles and their practice progress. Every handler gets the signed-in parent.
 import { now, json, readJson, HttpError } from './util.js'
 import { pinHash, startSession, endCurrentSession } from './auth.js'
+import { isPlus, cancelNow } from './billing.js'
 
 const GRADES = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']
 const AVATARS = ['🐼', '🐯', '🐰', '🐨', '🦊', '🐸', '🐧', '🦁', '🐳', '🦄']
-const MAX_PROFILES = 6
+const MAX_PROFILES = 6 // Plus
+const FREE_PROFILES = 1
 const isWord = (w) => typeof w === 'string' && w.length >= 1 && w.length <= 8
 
 function cleanProfile(body, partial = false) {
@@ -34,12 +36,26 @@ function parentOnly(user) {
   if (user.childId) throw new HttpError(403, 'parent_only')
 }
 
+/** Cloud progress, extra children, child logins, reports and word lists are Plus features. */
+function plusOnly(user) {
+  if (!isPlus(user)) throw new HttpError(402, 'plus_required')
+}
+
+export const planInfo = (user) => ({
+  plus: isPlus(user),
+  until: user.plus_until || null,
+  interval: user.plan_interval || null,
+  status: user.subscription_status || null,
+  cancelAtPeriodEnd: !!user.cancel_at_period_end,
+  canManage: !!user.stripe_customer_id,
+})
+
 const publicProfile = (p) => ({ id: p.id, name: p.name, grade: p.grade, avatar: p.avatar })
 
 export async function me(env, user) {
   if (user.childId) {
     const p = await ownProfile(env, user, user.childId)
-    return json({ child: true, user: { email: user.email }, profiles: [publicProfile(p)] })
+    return json({ child: true, user: { email: user.email }, plan: { plus: isPlus(user) }, profiles: [publicProfile(p)] })
   }
   const { results } = await env.DB.prepare(
     `SELECT p.*, (SELECT COUNT(*) FROM sessions s WHERE s.profile_id = p.id AND s.expires_at > ?) AS devices
@@ -50,6 +66,7 @@ export async function me(env, user) {
   return json({
     child: false,
     user: { email: user.email, name: user.name, plan: user.plan },
+    plan: planInfo(user),
     profiles: results.map((p) => ({ ...publicProfile(p), hasPin: !!p.pin_hash, devices: p.devices })),
   })
 }
@@ -59,6 +76,7 @@ const WEAK_PINS = new Set(['123456', '654321', '012345', '123123', '112233', '12
 /** Parent sets (or resets) a child's 6-digit PIN. PINs must differ between siblings. */
 export async function setPin(request, env, user, id) {
   parentOnly(user)
+  plusOnly(user)
   await ownProfile(env, user, id)
   const pin = String((await readJson(request, 500)).pin || '').trim()
   if (!/^\d{6}$/.test(pin)) throw new HttpError(400, 'bad_pin_format')
@@ -74,6 +92,7 @@ export async function setPin(request, env, user, id) {
 /** Devices where this child is signed in. */
 export async function listDevices(env, user, id) {
   parentOnly(user)
+  plusOnly(user)
   await ownProfile(env, user, id)
   const { results } = await env.DB.prepare(
     'SELECT device, created_at, last_seen FROM sessions WHERE profile_id = ? AND expires_at > ? ORDER BY last_seen DESC',
@@ -93,6 +112,7 @@ export async function revokeDevices(env, user, id) {
 /** Parent hands this device to a child: the parent session ends, a child session starts. */
 export async function handover(request, env, user, id) {
   parentOnly(user)
+  plusOnly(user)
   const p = await ownProfile(env, user, id)
   await endCurrentSession(request, env)
   const setCookie = await startSession(request, env, user.id, id)
@@ -104,6 +124,7 @@ export async function createProfile(request, env, user) {
   const body = cleanProfile(await readJson(request, 2000))
   const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM profiles WHERE user_id = ?').bind(user.id).first()
   if (n >= MAX_PROFILES) throw new HttpError(400, 'too_many_profiles')
+  if (n >= FREE_PROFILES && !isPlus(user)) throw new HttpError(402, 'plus_required')
   const p = { id: crypto.randomUUID(), ...body }
   await env.DB.prepare('INSERT INTO profiles (id, user_id, name, grade, avatar, created_at) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(p.id, user.id, p.name, p.grade, p.avatar, now())
@@ -132,6 +153,7 @@ export async function deleteProfile(env, user, id) {
 
 /** 错词本 + how often each word has been seen (the app uses it to pick fresh words). */
 export async function getProgress(env, user, id) {
+  plusOnly(user)
   await ownProfile(env, user, id)
   const { results } = await env.DB.prepare(
     'SELECT word, seen, wrong, streak, in_book, last_at, bad, note, cleared_at FROM progress WHERE profile_id = ?',
@@ -174,6 +196,7 @@ ON CONFLICT (profile_id, word) DO UPDATE SET
 
 /** One finished set of 10. Idempotent on the client-generated set id (the app retries when offline). */
 export async function saveSet(request, env, user, id) {
+  plusOnly(user)
   await ownProfile(env, user, id)
   const body = await readJson(request, 50_000)
   const setId = String(body.id || '')
@@ -185,8 +208,9 @@ export async function saveSet(request, env, user, id) {
   const t = Number.isFinite(body.at) ? Math.min(body.at, now()) : now()
   const score = Math.max(0, Math.min(100, Math.round(Number(body.score) || 0)))
   const stmts = [
-    env.DB.prepare('INSERT INTO sets (id, profile_id, source, score, n, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(
-      setId, id, String(body.source || '').slice(0, 20), score, results.length, t,
+    env.DB.prepare('INSERT INTO sets (id, profile_id, source, score, n, ms, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(
+      setId, id, String(body.source || '').slice(0, 40), score, results.length,
+      Number.isFinite(body.ms) ? Math.max(0, Math.min(6 * 3600_000, Math.round(body.ms))) : null, t,
     ),
   ]
   for (const r of results) {
@@ -220,6 +244,7 @@ export async function saveSet(request, env, user, id) {
 
 /** First sign-in on a device: fold that device's local 错词本 and seen-counts into the profile. */
 export async function importLocal(request, env, user, id) {
+  plusOnly(user)
   await ownProfile(env, user, id)
   const body = await readJson(request, 200_000)
   const mistakes = body.mistakes && typeof body.mistakes === 'object' ? body.mistakes : {}
@@ -258,6 +283,7 @@ export async function importLocal(request, env, user, id) {
 
 export async function deleteAccount(env, user) {
   parentOnly(user)
+  await cancelNow(env, user) // stop billing before the account disappears
   const ids = (await env.DB.prepare('SELECT id FROM profiles WHERE user_id = ?').bind(user.id).all()).results.map((r) => r.id)
   const stmts = []
   for (const pid of ids) for (const t of ['attempts', 'sets', 'progress', 'levels']) stmts.push(env.DB.prepare(`DELETE FROM ${t} WHERE profile_id = ?`).bind(pid))
@@ -265,6 +291,7 @@ export async function deleteAccount(env, user) {
     env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM profiles WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM login_tokens WHERE email = ?').bind(user.email),
+    env.DB.prepare('DELETE FROM word_lists WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
   )
   await env.DB.batch(stmts)

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0 — 2026-10-05
+- **小华听写 Plus** (S$6.98 / month or S$68.98 / year, no trial). Free stays fully playable — all grades and levels — for **one child, with progress kept on that device**. Plus adds up to 6 children, cloud records on every device, child PIN sign-in / 孩子模式, the parent report and custom word lists, and future features (custom pages, custom mascot).
+- Payments via Stripe Checkout (cards, Apple Pay, Google Pay; promo codes allowed) and the Stripe Customer Portal for changing plan, card or cancelling. A signed webhook keeps the plan in sync; access runs to the end of the paid period plus 3 days' grace. Deleting an account cancels its subscription.
+- Upgrade sheet (nav Plus link, account menu, locked features): yearly/monthly choice with the saving, guests are asked to log in first, children are told to ask a parent. Plus shows a badge on the account button and the renewal date in the account menu.
+- On upgrade, each child's local progress is uploaded once and sync turns on. Accounts that lapse keep their data in the cloud; extra children are shown as paused until Plus is back.
+- **学习报告** (Plus, parents): per child — words this week vs last week, accuracy, days practised and minutes, 复习营地 size and words sent home, levels and stars; words per week (8 weeks) and per day (7 days) charts with tooltips and a screen-reader table; the most-missed characters (tap for stroke order); recent practice.
+- **我的词组** (Plus): paste this week's school 听写 list (spaces, commas, 、 or new lines; up to 60 words, 50 lists). Pinyin is added automatically (bank words keep examples and English). Children can practise any list; missed words go to 复习营地 under a new 词组 filter.
+- Sets now record their duration. GA events: view_promotion, begin_checkout, purchase, list_create / list_update / list_practice, report_view.
+
 ## 0.7.0 — 2026-10-05
 - English interface: a 中文 / EN switch in the nav bar (also ?lang=en / ?lang=zh links for sharing). Menus, instructions, 墨墨's tips, grading feedback, level results, 复习营地, login / child PIN / profile dialogs and the footer are all translated; the characters, pinyin and example sentences stay Chinese. The choice is remembered and shared with the 词语表 pages.
 - Switching to English turns on each word's English meaning, so a child without Chinese at home knows what they are writing.

@@ -7,6 +7,11 @@ import { api } from './api.js'
 const KEY_PREFS = 'xhw.prefs.v1'
 const KEY_OUTBOX = 'xhw.outbox.v1'
 let scope = null // null = guest, otherwise a profile id
+// Plus syncs a profile's progress with the server; free accounts keep it on this device only
+let sync = false
+export const setSync = (on) => {
+  sync = !!on
+}
 
 const GUEST_KEYS = { mistakes: 'xhw.mistakes.v1', seen: 'xhw.seen.v1', history: 'xhw.history.v1', levels: 'xhw.levels.v1', cleared: 'xhw.cleared.v1' }
 const key = (name) => (scope ? `xhw.p.${scope}.${name}` : GUEST_KEYS[name])
@@ -98,19 +103,19 @@ function applyLocally(results, score, source, t, level) {
  * an island level. A wrong word enters the 错词本; it leaves after being written perfectly twice
  * in a row (the server applies the same rule).
  */
-export function recordSet(results, score, source, level = null) {
+export function recordSet(results, score, source, level = null, ms = null) {
   const t = Date.now()
   applyLocally(results, score, source, t, level)
-  if (!scope) return
+  if (!scope || !sync) return
   const outbox = read(KEY_OUTBOX, [])
-  outbox.push({ id: crypto.randomUUID(), profileId: scope, results, score, source, at: t, level })
+  outbox.push({ id: crypto.randomUUID(), profileId: scope, results, score, source, at: t, level, ms })
   write(KEY_OUTBOX, outbox.slice(-200))
   flushOutbox()
 }
 
 let flushing = false
 export async function flushOutbox() {
-  if (flushing) return
+  if (flushing || !sync) return
   flushing = true
   try {
     for (;;) {
@@ -139,3 +144,23 @@ export function wordsToday() {
   start.setHours(0, 0, 0, 0)
   return loadHistory().filter((h) => h.t >= start.getTime()).reduce((n, h) => n + (h.n || 0), 0)
 }
+
+/** A free account's first child takes over what was practised here as a guest (kept on this device). */
+export function copyGuestTo(profileId) {
+  for (const name of ['mistakes', 'seen', 'history', 'levels', 'cleared']) {
+    const guest = read(GUEST_KEYS[name], null)
+    const mine = read(`xhw.p.${profileId}.${name}`, null)
+    if (guest && !mine) write(`xhw.p.${profileId}.${name}`, guest)
+  }
+}
+
+/** This device's copy of a profile's progress, for uploading when the family moves to Plus. */
+export const localProfileData = (profileId) => ({
+  mistakes: read(`xhw.p.${profileId}.mistakes`, {}),
+  seen: read(`xhw.p.${profileId}.seen`, {}),
+  levels: read(`xhw.p.${profileId}.levels`, {}),
+})
+
+// set once a profile's device-only progress has been merged into the cloud
+export const isUploaded = (profileId) => read(`xhw.p.${profileId}.uploaded`, false)
+export const markUploaded = (profileId) => write(`xhw.p.${profileId}.uploaded`, true)
