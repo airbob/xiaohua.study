@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.1 — 2026-10-05
+- The paid plan is now called **小华听写 Pro** (was Plus) everywhere on the site, in both languages. Stripe goes live with SGD prices.
+
 ## 0.8.0 — 2026-10-05
 - **小华听写 Plus** (S$6.98 / month or S$68.98 / year, no trial). Free stays fully playable — all grades and levels — for **one child, with progress kept on that device**. Plus adds up to 6 children, cloud records on every device, child PIN sign-in / 孩子模式, the parent report and custom word lists, and future features (custom pages, custom mascot).
 - Payments via Stripe Checkout (cards, Apple Pay, Google Pay; promo codes allowed) and the Stripe Customer Portal for changing plan, card or cancelling. A signed webhook keeps the plan in sync; access runs to the end of the paid period plus 3 days' grace. Deleting an account cancels its subscription.

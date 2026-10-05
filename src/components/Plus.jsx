@@ -20,14 +20,14 @@ const FEATURES = [
   ['更多新功能', '定制页面、定制吉祥物等，开发好就解锁'],
 ]
 
-/** Small "Plus" tag next to a locked feature. */
+/** Small "Pro" tag next to a locked feature. */
 export function PlusTag() {
-  return <span className="plus-tag">Plus</span>
+  return <span className="plus-tag">Pro</span>
 }
 
 /**
  * The upgrade sheet. Guests are asked to log in first (onLogin); children are told to ask a
- * parent; a parent who is already on Plus sees their plan and can manage it.
+ * parent; a parent who is already on Pro sees their plan and can manage it.
  */
 export function PlusModal({ onClose, onLogin, reason }) {
   const t = useT()
@@ -65,11 +65,11 @@ export function PlusModal({ onClose, onLogin, reason }) {
   const until = a.plan?.until ? new Date(a.plan.until).toLocaleDateString(getLang() === 'en' ? 'en-SG' : 'zh-CN') : ''
 
   return (
-    <div className="modal" onClick={onClose} role="dialog" aria-modal="true" aria-label={t('小华听写 Plus')}>
+    <div className="modal" onClick={onClose} role="dialog" aria-modal="true" aria-label={t('小华听写 Pro')}>
       <div className="modal-card sheet plus-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
           <div className="modal-title">
-            {t('小华听写')} <span className="plus-word">Plus</span>
+            {t('小华听写')} <span className="plus-word">Pro</span>
           </div>
           <button className="btn ghost close" onClick={onClose} aria-label={t('关闭')}>✕</button>
         </div>
@@ -94,7 +94,7 @@ export function PlusModal({ onClose, onLogin, reason }) {
         {a.plan?.plus && !a.child ? (
           <div className="plus-current">
             <p>
-              <b>{t('你已经是 Plus 会员')}</b>
+              <b>{t('你已经是 Pro 会员')}</b>
               <br />
               <span className="muted small">
                 {a.plan.cancelAtPeriodEnd ? t('订阅会在 {d} 结束', { d: until }) : t('下次续费：{d}', { d: until })}
@@ -105,7 +105,7 @@ export function PlusModal({ onClose, onLogin, reason }) {
             )}
           </div>
         ) : a.child ? (
-          <MascotSaysPlain>{t('请爸爸妈妈在他们的账号里升级 Plus。')}</MascotSaysPlain>
+          <MascotSaysPlain>{t('请爸爸妈妈在他们的账号里升级 Pro。')}</MascotSaysPlain>
         ) : (
           <>
             <div className="plan-pick" role="radiogroup" aria-label={t('选择方案')}>
@@ -123,7 +123,7 @@ export function PlusModal({ onClose, onLogin, reason }) {
             </div>
             {signedIn ? (
               <button className="btn primary big-btn" onClick={go} disabled={busy}>
-                {busy ? t('正在跳转…') : t('升级 Plus')}
+                {busy ? t('正在跳转…') : t('升级 Pro')}
               </button>
             ) : (
               <button className="btn primary big-btn" onClick={onLogin}>{t('先登录，再升级')}</button>
@@ -154,7 +154,7 @@ function MascotSaysPlain({ children }) {
   )
 }
 
-/** A feature card shown to free accounts in place of a Plus feature. */
+/** A feature card shown to free accounts in place of a Pro feature. */
 export function PlusLocked({ title, desc, onUpgrade }) {
   const t = useT()
   return (
@@ -163,7 +163,7 @@ export function PlusLocked({ title, desc, onUpgrade }) {
         <b>{t(title)}</b> <PlusTag />
         <p className="muted small">{t(desc)}</p>
       </div>
-      <button className="btn primary" onClick={onUpgrade}>{t('了解 Plus')}</button>
+      <button className="btn primary" onClick={onUpgrade}>{t('了解 Pro')}</button>
     </div>
   )
 }

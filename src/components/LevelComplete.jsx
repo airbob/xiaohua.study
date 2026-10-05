@@ -126,7 +126,7 @@ export default function LevelComplete({ results, kind, level, title: listTitle, 
 
         {account.status === 'signed-in' && !account.child && !account.plan?.plus && (
           <button className="save-nudge" onClick={onPlus}>
-            {t('练习记录只保存在这台设备上。')}<b>{t('升级 Plus 存到云端 →')}</b>
+            {t('练习记录只保存在这台设备上。')}<b>{t('升级 Pro 存到云端 →')}</b>
           </button>
         )}
 

@@ -60,7 +60,7 @@ export default function App() {
     }
     if (billing === 'success') {
       awaitPlus().then((ok) => {
-        showNotice(ok ? '欢迎加入 Plus！练习记录已经开始同步到云端。' : '付款成功，Plus 正在开通，稍等一下再刷新页面。')
+        showNotice(ok ? '欢迎加入 Pro！练习记录已经开始同步到云端。' : '付款成功，Pro 正在开通，稍等一下再刷新页面。')
         if (ok) track('purchase', { currency: 'SGD', items: [{ item_name: 'plus' }] })
       })
     } else initAccount()
@@ -209,7 +209,7 @@ export default function App() {
           track('login_open', { from: 'complete' })
           setModal('login')
         }}
-        onPlus={() => setModal({ plus: '升级 Plus，练习记录就会存到云端，换设备也能接着练。' })}
+        onPlus={() => setModal({ plus: '升级 Pro，练习记录就会存到云端，换设备也能接着练。' })}
       />
     )
   else if (screen.name === 'lists')
@@ -217,7 +217,7 @@ export default function App() {
       <ListsPage
         onBack={home}
         onPlay={(words, title) => play('custom', { words, title })}
-        onUpgrade={() => setModal({ plus: '自定义词组是 Plus 功能。' })}
+        onUpgrade={() => setModal({ plus: '自定义词组是 Pro 功能。' })}
       />
     )
   else if (screen.name === 'report')

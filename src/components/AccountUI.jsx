@@ -28,7 +28,7 @@ const ERRORS = {
   pin_locked: '试错太多次了，15 分钟后再试',
   pin_too_simple: '这个 PIN 太简单了，换一个',
   pin_taken: '另一个孩子已经用了这个 PIN，换一个',
-  plus_required: '这是 Plus 功能，请爸爸妈妈先升级 Plus',
+  plus_required: '这是 Pro 功能，请爸爸妈妈先升级 Pro',
 }
 const msg = (e) => t(ERRORS[e?.code] || '出错了，请再试一次')
 
@@ -344,7 +344,7 @@ export function ProfileModal({ profile, first, onClose, onPlus }) {
       else await createProfile({ name, grade, avatar })
       onClose()
     } catch (err) {
-      if (err.code === 'plus_required' && onPlus) return onPlus('免费版只能添加 1 个孩子，Plus 最多 6 个。')
+      if (err.code === 'plus_required' && onPlus) return onPlus('免费版只能添加 1 个孩子，Pro 最多 6 个。')
       setError(msg(err))
     } finally {
       setBusy(false)
@@ -393,7 +393,7 @@ export function ProfileModal({ profile, first, onClose, onPlus }) {
               <b>{t('孩子用 PIN 自己登录')}</b> <PlusTag />
               <span className="muted small">{t('设好 PIN，孩子在自己的平板上也能登录，进度同步。')}</span>
             </span>
-            <button type="button" className="btn small-btn" onClick={() => onPlus?.('孩子登录和多设备同步是 Plus 功能。')}>{t('了解 Plus')}</button>
+            <button type="button" className="btn small-btn" onClick={() => onPlus?.('孩子登录和多设备同步是 Pro 功能。')}>{t('了解 Pro')}</button>
           </div>
         </div>
       )}
@@ -440,7 +440,7 @@ export function AccountSheet({ onClose, onEdit, onAdd, onPlus, onReport, onLists
         {plus ? (
           <>
             <span>
-              <b>{t('小华听写')} <span className="plus-word">Plus</span></b>
+              <b>{t('小华听写')} <span className="plus-word">Pro</span></b>
               <span className="muted small">{a.plan.cancelAtPeriodEnd ? t('订阅会在 {d} 结束', { d: until }) : t('下次续费：{d}', { d: until })}</span>
             </span>
             {a.plan.canManage && (
@@ -453,15 +453,15 @@ export function AccountSheet({ onClose, onEdit, onAdd, onPlus, onReport, onLists
               <b>{t('免费版')}</b>
               <span className="muted small">{t('1 个孩子 · 记录保存在这台设备上')}</span>
             </span>
-            <button className="btn primary small-btn" onClick={() => onPlus()}>{t('升级 Plus')}</button>
+            <button className="btn primary small-btn" onClick={() => onPlus()}>{t('升级 Pro')}</button>
           </>
         )}
       </div>
       <div className="sheet-links">
-        <button className="btn" onClick={() => (plus ? onReport(a.activeId) : onPlus('家长报告是 Plus 功能。'))} disabled={!a.activeId}>
+        <button className="btn" onClick={() => (plus ? onReport(a.activeId) : onPlus('家长报告是 Pro 功能。'))} disabled={!a.activeId}>
           {t('学习报告')} {!plus && <PlusTag />}
         </button>
-        <button className="btn" onClick={() => (plus ? onLists() : onPlus('自定义词组是 Plus 功能。'))}>
+        <button className="btn" onClick={() => (plus ? onLists() : onPlus('自定义词组是 Pro 功能。'))}>
           {t('我的词组')} {!plus && <PlusTag />}
         </button>
       </div>
@@ -471,7 +471,7 @@ export function AccountSheet({ onClose, onEdit, onAdd, onPlus, onReport, onLists
             <button
               className="profile-pick"
               onClick={() => {
-                if (isPaused(p.id)) return onPlus('免费版只能练 1 个孩子。升级 Plus，其他孩子的记录马上恢复。')
+                if (isPaused(p.id)) return onPlus('免费版只能练 1 个孩子。升级 Pro，其他孩子的记录马上恢复。')
                 selectProfile(p.id)
                 onClose()
               }}
@@ -492,7 +492,7 @@ export function AccountSheet({ onClose, onEdit, onAdd, onPlus, onReport, onLists
         ))}
       </ul>
       {a.profiles.length < 6 && (
-        <button className="btn" onClick={() => (plus || a.profiles.length === 0 ? onAdd() : onPlus('免费版只能添加 1 个孩子，Plus 最多 6 个。'))}>
+        <button className="btn" onClick={() => (plus || a.profiles.length === 0 ? onAdd() : onPlus('免费版只能添加 1 个孩子，Pro 最多 6 个。'))}>
           {t('＋ 添加孩子')} {!plus && a.profiles.length > 0 && <PlusTag />}
         </button>
       )}

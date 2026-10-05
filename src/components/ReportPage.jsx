@@ -80,7 +80,7 @@ function Columns({ data, caption, unit, height = 150 }) {
 
 const pct = (x) => (x === null || x === undefined ? '—' : `${Math.round(x * 100)}%`)
 
-/** 学习报告: one child's week, the trend, and what they keep getting wrong. Plus, parents only. */
+/** 学习报告: one child's week, the trend, and what they keep getting wrong. Pro, parents only. */
 export default function ReportPage({ profileId, onBack, onPick }) {
   const t = useT()
   const a = useAccount()

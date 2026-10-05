@@ -54,7 +54,7 @@ export function customWordInfo(word) {
   }
 }
 
-/** 我的词组: a family's own word lists (this week's school 听写). Plus. */
+/** 我的词组: a family's own word lists (this week's school 听写). Pro. */
 export default function ListsPage({ onBack, onPlay, onUpgrade }) {
   const t = useT()
   const a = useAccount()
@@ -102,9 +102,9 @@ export default function ListsPage({ onBack, onPlay, onUpgrade }) {
           <div className="lists-empty card">
             <Mascot size={80} />
             <div>
-              <b className="display">{t('自定义词组是 Plus 功能')}</b>
+              <b className="display">{t('自定义词组是 Pro 功能')}</b>
               <p className="muted small">{t('输入学校发的听写词表，孩子每周练的就是要考的词。')}</p>
-              <button className="btn primary" onClick={onUpgrade}>{t('了解 Plus')}</button>
+              <button className="btn primary" onClick={onUpgrade}>{t('了解 Pro')}</button>
             </div>
           </div>
         ) : editing ? (

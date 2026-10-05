@@ -519,7 +519,7 @@ a { color: inherit; }
   .foot-main { padding-top: 28px; gap: 24px; }
 }
 
-/* ---------- 小华听写 Plus ---------- */
+/* ---------- 小华听写 Pro ---------- */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .plus-tag { display: inline-block; vertical-align: middle; font-family: var(--body); font-size: 11px; font-weight: 900; letter-spacing: 0.5px; color: var(--ink); background: #ffe08a; border: 2px solid var(--ink); border-radius: 999px; padding: 0 7px; line-height: 16px; }
 .plus-word { font-family: var(--display); color: var(--red); }

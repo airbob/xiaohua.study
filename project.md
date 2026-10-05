@@ -66,7 +66,7 @@ back to the browser's speechSynthesis.
 
 ## Accounts (v0.4)
 Parents sign in (Google or an emailed link / 6-digit code); each parent has child
-profiles (1 on free, up to 6 on Plus) (nickname, grade, avatar). Guests can still practise; on a parent's first child,
+profiles (1 on free, up to 6 on Pro) (nickname, grade, avatar). Guests can still practise; on a parent's first child,
 the device's guest progress is merged in.
 - Hosting: Cloudflare Worker `xiaohua-study` (static `dist/` via Workers Assets + `worker/`
   for `/api/*`), deployed by Workers Builds on push to main. Config: `wrangler.jsonc`.
@@ -84,11 +84,11 @@ the device's guest progress is merged in.
   (port 8787) + `npm run dev` (proxies /api). `.dev.vars` has DEV_LOGIN_LINKS=1, which shows
   the email code on screen instead of sending mail.
 
-## Plus (v0.8)
+## Pro (v0.8)
 Free: every grade and level, 1 child, progress only in that browser's localStorage (no sync).
-Plus (S$6.98/mo, S$68.98/yr, no trial): up to 6 children, cloud progress, child PIN login /
+Pro (S$6.98/mo, S$68.98/yr, no trial): up to 6 children, cloud progress, child PIN login /
 孩子模式 / devices, 学习报告, 我的词组, future features.
-- Entitlement: `users.plus_until` (ms) > now. Server returns 402 `plus_required` for Plus-only
+- Entitlement: `users.plus_until` (ms) > now. Server returns 402 `plus_required` for Pro-only
   endpoints; the client calls `setSync(plan.plus)` to switch storage between local-only and outbox.
 - Billing: `worker/billing.js` — Stripe Checkout (subscription), Customer Portal, webhook
   `/api/billing/webhook` (signature checked, events de-duplicated in `stripe_events`).

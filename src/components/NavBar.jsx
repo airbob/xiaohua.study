@@ -137,7 +137,7 @@ export default function NavBar({ active = 'none', onNav, onAccount, onLang }) {
                       </span>
                     </div>
                   ))}
-                  <p className="muted small perks-plus">{t('以上是 Plus 会员功能（S$6.98/月起）。')}</p>
+                  <p className="muted small perks-plus">{t('以上是 Pro 会员功能（S$6.98/月起）。')}</p>
                   <div className="perks-note">
                     <b>{t('不登录也可以练！')}</b>{t('所有年级和关卡都能直接玩，只是进度和错词本只保存在这台设备上。')}
                   </div>
@@ -156,7 +156,7 @@ export default function NavBar({ active = 'none', onNav, onAccount, onLang }) {
                 <span className="me-avatar">{child.avatar}</span>
                 <span className="me-name">{child.name}</span>
                 <span className="me-sub">{child.grade}{account.child ? '' : ` · ${t('切换')}`}</span>
-                {account.plan?.plus && <span className="plus-tag">Plus</span>}
+                {account.plan?.plus && <span className="plus-tag">Pro</span>}
               </>
             ) : (
               <span className="me-name">{t('＋ 添加孩子')}</span>

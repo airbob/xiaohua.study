@@ -42,7 +42,7 @@ const remembered = () => {
 export async function initAccount() {
   try {
     const { user, profiles, child, plan = { plus: false } } = await api('/api/me')
-    // free accounts practise with their first child only; the others wait for Plus
+    // free accounts practise with their first child only; the others wait for Pro
     const usable = child || plan.plus ? profiles : profiles.slice(0, 1)
     const id = usable.find((p) => p.id === remembered())?.id || usable[0]?.id || null
     setScope(id)
@@ -66,7 +66,7 @@ export async function initAccount() {
   }
 }
 
-/** Plus: upload what this device practised before (once), then take the cloud copy. */
+/** Pro: upload what this device practised before (once), then take the cloud copy. */
 const uploading = new Map() // profile id → in-flight upload, so overlapping refreshes upload once
 async function syncProfile(id) {
   if (!isUploaded(id)) {
@@ -120,7 +120,7 @@ export async function createProfile({ name, grade, avatar }) {
   track('child_profile_create', { grade, first_child: first })
   set({ profiles: [...state.profiles, profile] })
   // the first child inherits whatever was practised on this device before signing in —
-  // into the cloud on Plus, into the child's device-only record on the free plan
+  // into the cloud on Pro, into the child's device-only record on the free plan
   if (first && hasGuestData()) {
     if (state.plan.plus) {
       try {
@@ -218,7 +218,7 @@ export const verifyEmailCode = (email, code) =>
     return r
   })
 
-// ---- 小华听写 Plus ------------------------------------------------------------------
+// ---- 小华听写 Pro ------------------------------------------------------------------
 
 /** Off to Stripe Checkout. interval: 'month' | 'year'. */
 export async function startCheckout(interval) {

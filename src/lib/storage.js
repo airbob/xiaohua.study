@@ -7,7 +7,7 @@ import { api } from './api.js'
 const KEY_PREFS = 'xhw.prefs.v1'
 const KEY_OUTBOX = 'xhw.outbox.v1'
 let scope = null // null = guest, otherwise a profile id
-// Plus syncs a profile's progress with the server; free accounts keep it on this device only
+// Pro syncs a profile's progress with the server; free accounts keep it on this device only
 let sync = false
 export const setSync = (on) => {
   sync = !!on
@@ -154,7 +154,7 @@ export function copyGuestTo(profileId) {
   }
 }
 
-/** This device's copy of a profile's progress, for uploading when the family moves to Plus. */
+/** This device's copy of a profile's progress, for uploading when the family moves to Pro. */
 export const localProfileData = (profileId) => ({
   mistakes: read(`xhw.p.${profileId}.mistakes`, {}),
   seen: read(`xhw.p.${profileId}.seen`, {}),
