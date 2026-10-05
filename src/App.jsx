@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Home from './components/Home.jsx'
+import NavBar from './components/NavBar.jsx'
 import Practice from './components/Practice.jsx'
 import LevelComplete from './components/LevelComplete.jsx'
 import ReviewCamp from './components/ReviewCamp.jsx'
@@ -74,7 +75,7 @@ export default function App() {
   }
 
   // Deep links from the word-list pages: /?start=P3 (or ?start=mix) jumps straight into a set,
-  // /?start=P3&level=4 into that level (闯这一关), /?go=review opens 复习营地.
+  // /?start=P3&level=4 into that level (闯这一关), /?go=review opens 复习营地, /?go=login the sign-in dialog.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const q = (params.get('start') || '').toUpperCase()
@@ -82,6 +83,7 @@ export default function App() {
     if (!q && !dest) return
     window.history.replaceState(null, '', window.location.pathname)
     if (dest === 'review') return go({ name: 'review' })
+    if (dest === 'login') return setModal('login')
     if (q === 'MIX') play('mix')
     else if (GRADES.includes(q)) {
       const n = Number(params.get('level'))
@@ -110,8 +112,10 @@ export default function App() {
 
   const home = () => go({ name: 'home' })
 
+  const nav = (k) => (k === 'camp' ? go({ name: 'review' }) : home())
+  let page
   if (screen.name === 'practice')
-    return (
+    page = (
       <Practice
         key={screen.id}
         words={screen.words}
@@ -121,8 +125,8 @@ export default function App() {
         onFinish={(results, stats) => go({ name: 'complete', kind: screen.kind, level: screen.level, words: screen.words, results, stats })}
       />
     )
-  if (screen.name === 'complete')
-    return (
+  else if (screen.name === 'complete')
+    page = (
       <LevelComplete
         key={screen.results.length + screen.stats.ms}
         results={screen.results}
@@ -133,26 +137,27 @@ export default function App() {
         onNext={screen.kind === 'level' ? nextLevel(screen.level) : null}
         onAgain={() => (screen.kind === 'review' ? go({ name: 'review' }) : play('mix'))}
         onReview={(wrong) => play('review', { words: wrong.map(({ chars, ...w }) => w) })}
-        onLogin={() => {
-          home()
-          setModal('login')
-        }}
+        onLogin={() => setModal('login')}
       />
     )
-  if (screen.name === 'review')
-    return (
-      <ReviewCamp prefs={prefs} onPrefs={updatePrefs} onBack={home} onStart={(words) => play('review', { words })} />
-    )
-  return (
-    <>
+  else if (screen.name === 'review')
+    page = <ReviewCamp prefs={prefs} onPrefs={updatePrefs} onBack={home} onStart={(words) => play('review', { words })} />
+  else
+    page = (
       <Home
         prefs={prefs}
         onPrefs={updatePrefs}
         onStartLevel={startLevel}
         onMix={() => play('mix')}
         onReview={() => go({ name: 'review' })}
-        onAccount={setModal}
       />
+    )
+
+  const active = screen.name === 'home' ? 'map' : screen.name === 'review' ? 'camp' : 'none'
+  return (
+    <>
+      <NavBar active={active} onNav={nav} onAccount={setModal} />
+      {page}
       {modals}
     </>
   )

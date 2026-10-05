@@ -2,8 +2,22 @@
 <html lang="zh-Hans">
   <head>
     <meta charset="UTF-8" />
+    <!-- Google tag (gtag.js) — G-SDETN3W1KN. Loaded only on the live site so local dev and
+         previews don't pollute the data. Keep in sync with GA in scripts/seo-pages.mjs. -->
+    <script>
+      if (/(^|\.)xiaohua\.study$/.test(location.hostname)) {
+        var gaTag = document.createElement('script')
+        gaTag.async = true
+        gaTag.src = 'https://www.googletagmanager.com/gtag/js?id=G-SDETN3W1KN'
+        document.head.appendChild(gaTag)
+        window.dataLayer = window.dataLayer || []
+        window.gtag = function () { dataLayer.push(arguments) }
+        gtag('js', new Date())
+        gtag('config', 'G-SDETN3W1KN')
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>写华文 · 新加坡小学华文听写练习 P1–P6 | Chinese Spelling Practice</title>
+    <title>小华听写 · 新加坡小学华文听写练习 P1–P6 | Xiaohua Chinese Tingxie Practice</title>
     <meta name="description" content="免费的新加坡小学华文听写练习：P1–P6 考卷常见词语，听读音、看拼音，在田字格里手写，逐笔检查笔顺对错。Free Singapore primary Chinese spelling (听写) practice with handwriting and stroke-order checking." />
     <meta name="keywords" content="华文听写, 听写练习, 新加坡华文, 小学华文, 华文词语, 写字练习, 笔顺, 田字格, P1华文, P2华文, P3华文, P4华文, P5华文, P6华文, Chinese spelling, tingxie, Singapore primary Chinese, Chinese handwriting practice, stroke order" />
     <link rel="canonical" href="https://xiaohua.study/" />
@@ -14,10 +28,10 @@
     <meta name="robots" content="index, follow, max-image-preview:large" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="写华文 xiaohua.study" />
+    <meta property="og:site_name" content="小华听写 Xiaohua" />
     <meta property="og:locale" content="zh_SG" />
     <meta property="og:url" content="https://xiaohua.study/" />
-    <meta property="og:title" content="写华文 · 新加坡小学华文听写练习 P1–P6" />
+    <meta property="og:title" content="小华听写 · 新加坡小学华文听写练习 P1–P6" />
     <meta property="og:description" content="听读音、看拼音，在田字格里手写词语，逐笔检查笔顺。1,181 个考卷常见词，免费练习。" />
     <meta property="og:image" content="https://xiaohua.study/og.png" />
     <meta property="og:image:width" content="1200" />
@@ -26,7 +40,7 @@
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23c8402f'/><text x='50' y='72' font-size='64' text-anchor='middle' fill='white'>写</text></svg>" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-title" content="写华文" />
+    <meta name="apple-mobile-web-app-title" content="小华听写" />
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
     <script type="application/ld+json">
@@ -37,13 +51,13 @@
             "@type": "WebSite",
             "@id": "https://xiaohua.study/#website",
             "url": "https://xiaohua.study/",
-            "name": "写华文",
-            "alternateName": "xiaohua.study",
+            "name": "小华听写",
+            "alternateName": ["Xiaohua", "Xiaohua Chinese Tingxie Practice", "xiaohua.study"],
             "inLanguage": "zh-Hans"
           },
           {
             "@type": ["WebApplication", "LearningResource"],
-            "name": "写华文 · 新加坡小学华文听写练习",
+            "name": "小华听写 · 新加坡小学华文听写练习",
             "url": "https://xiaohua.study/",
             "applicationCategory": "EducationalApplication",
             "operatingSystem": "Any (web browser)",
@@ -64,7 +78,7 @@
     <div id="root">
       <!-- Static fallback for crawlers and no-JS visitors; React replaces it on load. -->
       <main class="home">
-        <h1>写华文 · 新加坡小学华文听写练习</h1>
+        <h1>小华听写 · 新加坡小学华文听写练习</h1>
         <p>听读音、看拼音，在田字格里把整个词写出来，写完逐个字检查：笔画有没有漏、笔顺对不对、方向有没有反。词语来自新加坡小学 P1–P6 华文考卷中最常出现的 1,181 个词。</p>
         <p>Free Chinese spelling (听写) practice for Singapore primary school students, P1 to P6 — handwrite each word and get stroke-by-stroke feedback.</p>
         <h2>各年级词语表</h2>

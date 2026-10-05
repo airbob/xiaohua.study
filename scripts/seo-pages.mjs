@@ -46,7 +46,15 @@ button{font-family:inherit;cursor:pointer}
 .brand-name{font-family:var(--display);font-size:26px}
 .navlink{color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:10px 12px;border-radius:12px}
 .navlink:hover{color:var(--yellow)}
-.navlink[aria-current]{color:var(--cream);font-weight:900;padding:8px 14px;background:var(--navy-2)}
+.navlink[aria-current]{color:#ffe08a;font-weight:900;padding:8px 14px;background:var(--navy-2)}
+.navlinks{display:flex;gap:4px;flex-wrap:wrap}
+.acct{display:flex;align-items:center;gap:10px}
+.guest-note{font-size:13px;color:#b9c0d4;white-space:nowrap}
+.login-btn{height:44px;padding:0 18px 0 14px;border-radius:14px;background:#ffe08a;border:3px solid var(--ink);box-shadow:0 0 0 2px #ffe08a;display:flex;align-items:center;gap:8px;font-size:16px;font-weight:900;color:var(--ink);text-decoration:none;white-space:nowrap}
+.login-btn:hover{background:#ffd65c;color:var(--ink)}
+.me-btn{height:44px;display:flex;align-items:center;gap:8px;padding:0 14px 0 8px;border-radius:14px;background:#fff;border:3px solid var(--ink);color:var(--ink);text-decoration:none;font-family:var(--display);font-size:20px}
+.me-btn small{font-family:var(--body,inherit);font-size:12px;font-weight:700;color:var(--muted)}
+@media (max-width:760px){.topnav .wrap{gap:6px;padding-top:8px;padding-bottom:8px}.guest-note{display:none}.login-btn{height:38px;font-size:14px}.navlinks{order:3;width:100%;justify-content:space-between}.navlink{flex:1;text-align:center;padding:8px 6px;font-size:14px}}
 
 .hero{background:var(--sea);border-bottom:4px solid var(--ink);position:relative;overflow:hidden}
 .hero .waves{position:absolute;left:0;top:0;width:100%;height:100%}
@@ -134,8 +142,40 @@ h2.section-title{margin:0;font-family:var(--display);font-weight:400;font-size:3
 .cta-foot-text small{font-size:14px;color:#d9deec}
 .btn-orange{height:56px;padding:0 22px;border-radius:18px;background:var(--orange);border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink);color:var(--ink);font-size:18px;font-weight:900;text-decoration:none;display:flex;align-items:center}
 .btn-orange:hover{color:var(--ink)}
-.source{font-size:12px;color:var(--muted);padding-bottom:32px}
-.source a{color:var(--muted)}
+.site-foot{background:#2b2b3a;color:#fff;margin-top:8px}
+.site-foot a{text-decoration:none}
+.foot-wrap{max-width:1224px;margin:0 auto;padding:0 28px;box-sizing:border-box}
+.foot-lists{background:#3a4566;border-top:4px solid #1b1b26;border-bottom:4px solid #1b1b26}
+.foot-lists .foot-wrap{padding-top:32px;padding-bottom:36px;display:flex;flex-direction:column;gap:18px}
+.foot-lists-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.foot-lists-head h2{margin:0;font-family:var(--display);font-weight:400;font-size:30px;color:#fff}
+.foot-lists-head span{font-size:14px;color:#c9d0e3}
+.foot-islands{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:14px}
+.foot-island{height:96px;box-sizing:border-box;border-radius:48% 52% 46% 54%/54% 46% 54% 46%;background:#f6e3b4;border:4px solid #1b1b26;box-shadow:inset 0 -12px 0 #7cc46b;color:#1b1b26;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.foot-island:hover{color:#1b1b26;transform:translateY(-3px) rotate(-1deg)}
+.foot-island .g{font-family:var(--display);font-size:30px;line-height:1}
+.foot-island b{font-size:13px;font-weight:900}
+.foot-island small{font-size:12px;font-weight:500;color:#4a4a55;margin-bottom:8px}
+.foot-main{padding-top:36px;padding-bottom:28px;display:flex;flex-wrap:wrap;gap:32px}
+.foot-about{flex:999 1 420px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.foot-brand{display:flex;align-items:center;gap:12px}
+.foot-brand .logo{width:44px;height:44px;font-size:26px}
+.foot-brand .n{font-family:var(--display);font-size:26px}
+.foot-about p{margin:0;font-size:15px;line-height:1.8;color:#e3e7f2}
+.foot-about p.en{font-size:14px;line-height:1.7;color:#b9c0d4}
+.foot-about p.credit{font-size:12px;color:#8d94aa}
+.site-foot{padding-bottom:12px}
+.foot-more{flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.foot-kicker{font-size:14px;font-weight:900;color:#ffe08a;letter-spacing:1px}
+.foot-card{background:#fff;border:4px solid #1b1b26;border-radius:22px;box-shadow:0 5px 0 #11111a;padding:14px 16px;display:flex;align-items:center;gap:14px;color:#1b1b26}
+.foot-card:hover{color:#1b1b26;transform:translateY(-2px)}
+.foot-card-icon{width:56px;height:56px;flex:none;border-radius:16px;border:3px solid #1b1b26;box-sizing:border-box;display:flex;align-items:center;justify-content:center}
+.foot-card-text{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.foot-card-text b{font-size:18px;font-weight:900}
+.foot-card-text span{font-size:13px;color:#4a4a55;line-height:1.5}
+.foot-card-text i{font-style:normal;font-size:12px;font-weight:700;color:#1b5e8c}
+@media (max-width:760px){.foot-wrap{padding:0 16px}.foot-islands{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.foot-island{height:84px}.foot-lists-head h2{font-size:24px}.foot-main{padding-top:28px;gap:24px}}
+@media print{.site-foot{display:none}}
 
 @media (max-width:600px){
   .wrap{padding-left:16px;padding-right:16px}
@@ -151,6 +191,21 @@ h2.section-title{margin:0;font-family:var(--display);font-weight:400;font-size:3
   .level{break-inside:auto}.word{break-inside:avoid}
 }
 `
+
+const GA = `<!-- Google tag (gtag.js) — G-SDETN3W1KN. Loaded only on the live site so local dev and
+     previews don't pollute the data. Keep in sync with index.html. -->
+<script>
+  if (/(^|\\.)xiaohua\\.study$/.test(location.hostname)) {
+    var gaTag = document.createElement('script')
+    gaTag.async = true
+    gaTag.src = 'https://www.googletagmanager.com/gtag/js?id=G-SDETN3W1KN'
+    document.head.appendChild(gaTag)
+    window.dataLayer = window.dataLayer || []
+    window.gtag = function () { dataLayer.push(arguments) }
+    gtag('js', new Date())
+    gtag('config', 'G-SDETN3W1KN')
+  }
+</script>`
 
 const SPEAKER = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="#1B1B26"></path><path d="M16 9a4 4 0 0 1 0 6"></path></svg>`
 const ARROW = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>`
@@ -198,18 +253,45 @@ const SCRIPT = `
 })()
 `
 
+// word counts for the footer's grade islands; set by renderSeoPages before rendering
+let COUNTS = {}
+
+/** Site footer — same as the app's Footer.jsx (designer's 页脚). */
+function footer() {
+  return `<footer class="site-foot">
+<section class="foot-lists"><div class="foot-wrap">
+<div class="foot-lists-head"><h2>按年级看词语表</h2><span>每个词附拼音、英文意思和考卷例句</span></div>
+<div class="foot-islands">${LEVELS.map((g) => `<a class="foot-island" href="/words/${g.toLowerCase()}/"><span class="g">${g}</span><b>华文听写词语表</b><small>${COUNTS[g] || 0} 词</small></a>`).join('')}</div>
+</div></section>
+<div class="foot-wrap foot-main">
+<div class="foot-about">
+<div class="foot-brand"><span class="logo">写</span><span class="n">小华听写</span><svg width="46" height="50" viewBox="0 0 120 130" aria-hidden="true"><path d="M60 6 C 52 26 20 56 20 84 a40 40 0 0 0 80 0 C 100 56 68 26 60 6 Z" fill="#8ED6D0" stroke="#1B1B26" stroke-width="6"/><circle cx="45" cy="82" r="9" fill="#FFFFFF"/><circle cx="75" cy="82" r="9" fill="#FFFFFF"/><circle cx="47" cy="84" r="4.5" fill="#1B1B26"/><circle cx="77" cy="84" r="4.5" fill="#1B1B26"/><path d="M52 102 q8 7 16 0" stroke="#1B1B26" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
+<p>小华听写是给新加坡小学生的华文听写练习：听读音、看拼音，在田字格里把整个词写出来，写完逐个字检查笔画、笔顺和方向。词语整理自 P1–P6 华文考卷里最常出现的词。</p>
+<p class="en" lang="en">Xiaohua (小华听写) is free Chinese tingxie (听写, spelling) practice for Singapore primary school students — handwrite each word and get stroke-by-stroke feedback.</p>
+<p class="credit">词语整理自新加坡小学华文考卷（2019–2025）· 英文释义来自 CC-CEDICT（CC BY-SA 4.0）</p>
+</div>
+<div class="foot-more">
+<div class="foot-kicker">我们的其他作品</div>
+<a class="foot-card" href="https://sgexamhub.com" target="_blank" rel="noopener"><span class="foot-card-icon" style="background:#FFE08A"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z" fill="#FFFFFF"/><path d="M15 3v4h4"/><path d="M10 11h6M10 14h6M10 17h4"/><path d="M4 6v15h12"/></svg></span><span class="foot-card-text"><b>SGExamHub</b><span>新加坡小学考卷资源平台</span><i>sgexamhub.com</i></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="在新窗口打开" role="img"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v6H4V6h6"/></svg></a>
+<a class="foot-card" href="https://dreamon.im/xiaohua" target="_blank" rel="noopener"><span class="foot-card-icon" style="background:#8ED6D0"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3" fill="#FFFFFF"/><path d="M10.5 18.5h3"/><path d="M9.5 8.5l2 2 3.5-4"/></svg></span><span class="foot-card-text"><b>小华 App</b><span>拍照识字：扫一扫就有拼音、笔顺动画和练习</span><i>dreamon.im/xiaohua</i></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="在新窗口打开" role="img"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v6H4V6h6"/></svg></a>
+</div>
+</div>
+</footer>`
+}
+
 function page({ url, title, description, body, jsonld, grade = '' }) {
   return `<!doctype html>
 <html lang="zh-Hans">
 <head>
 <meta charset="UTF-8" />
+${GA}
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}" />
 <link rel="canonical" href="${SITE}${url}" />
 <meta name="theme-color" content="#2B2B3A" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="写华文 xiaohua.study" />
+<meta property="og:site_name" content="小华听写 Xiaohua" />
 <meta property="og:locale" content="zh_SG" />
 <meta property="og:url" content="${SITE}${url}" />
 <meta property="og:title" content="${esc(title)}" />
@@ -225,18 +307,37 @@ function page({ url, title, description, body, jsonld, grade = '' }) {
 <style>${CSS}</style>
 </head>
 <body data-grade="${grade}">
-<nav class="topnav" aria-label="写华文">
+<nav class="topnav" aria-label="小华听写">
 <div class="wrap">
-<a class="brand" href="/"><span class="logo">写</span><span class="brand-name">写华文</span></a>
-<span class="sp"></span>
+<a class="brand" href="/"><span class="logo">写</span><span class="brand-name">小华听写</span></a>
+<span class="navlinks">
 <a class="navlink" href="/">汉字岛地图</a>
 <a class="navlink" href="/words/"${url === '/words/' ? ' aria-current="page"' : ' aria-current="true"'}>词语表</a>
 <a class="navlink" href="/?go=review">复习营地</a>
+</span>
+<span class="sp"></span>
+<span class="acct" id="acct"><span class="guest-note">游客模式 · 也能直接练</span><a class="login-btn" href="/?go=login"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>登录 / 注册</a></span>
 </div>
 </nav>
 ${body}
-<p class="wrap source">词语整理自新加坡小学华文考卷（2019–2025）。英文释义来自 CC-CEDICT（CC BY-SA 4.0）。 · <a href="/">xiaohua.study 写华文</a></p>
+${footer()}
 <script>${SCRIPT}</script>
+<script>
+fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null }).then(function (me) {
+  if (!me || !me.profiles) return
+  var id = null
+  try { id = localStorage.getItem('xhw.activeProfile') } catch (e) {}
+  var p = me.profiles.filter(function (x) { return x.id === id })[0] || me.profiles[0]
+  var el = document.getElementById('acct')
+  if (!el) return
+  var a = document.createElement('a')
+  a.className = 'me-btn'
+  a.href = '/'
+  a.textContent = p ? p.avatar + ' ' + p.name + ' ' : '＋ 添加孩子'
+  if (p) { var s = document.createElement('small'); s.textContent = p.grade; a.appendChild(s) }
+  el.replaceChildren(a)
+}).catch(function () {})
+</script>
 </body>
 </html>
 `
@@ -269,6 +370,7 @@ const wordCard = (w) => `<article class="word" data-word="${esc(w.word)}">
 export function renderSeoPages(words) {
   const today = new Date().toISOString().slice(0, 10)
   const byLevel = Object.fromEntries(LEVELS.map((l) => [l, words.filter((w) => w.grade === l)]))
+  COUNTS = Object.fromEntries(LEVELS.map((l) => [l, byLevel[l].length]))
   const out = []
   const files = new Map()
 
@@ -282,7 +384,7 @@ export function renderSeoPages(words) {
       level === 'P1'
         ? '一年级还没有考卷数据，这份词表收录了一年级最基础的常用词（家人、学校、身体、颜色、动物、天气等）。'
         : `这份词表整理自新加坡小学${GRADE_CN[level]}华文考卷：一个词在${GRADE_CN[level]}考卷里经常出现、在更低年级还不常见，就收进这个年级。`
-    const crumbItems = [['/', '写华文'], ['/words/', '词语表'], [null, `${level} 华文听写词语`]]
+    const crumbItems = [['/', '小华听写'], ['/words/', '词语表'], [null, `${level} 华文听写词语`]]
     const start = `/?start=${level}`
     const body = `<header class="hero">${WAVES}
 <div class="wrap hero-in">
@@ -339,7 +441,7 @@ ${MOMO}
     const html = page({
       url,
       grade: level,
-      title: `${level} 华文听写词语表（${list.length} 个）· 拼音 · 英文 | ${level} Chinese Spelling List – 写华文`,
+      title: `${level} 华文听写词语表（${list.length} 个）· 拼音 · 英文 | ${level} Chinese Tingxie List – 小华听写`,
       description: `新加坡小学${GRADE_CN[level]}（${level}）华文听写词语 ${list.length} 个，附拼音、英文和考卷例句：${sample}…… 可在线手写练习，逐笔检查笔顺。`,
       body,
       jsonld: {
@@ -367,7 +469,7 @@ ${MOMO}
   // ---- overview ----------------------------------------------------------------
   {
     const url = '/words/'
-    const crumbItems = [['/', '写华文'], [null, '词语表']]
+    const crumbItems = [['/', '小华听写'], [null, '词语表']]
     const body = `<header class="hero">${WAVES}
 <div class="wrap hero-in">
 <div class="hero-text">
@@ -396,7 +498,7 @@ ${MOMO}
       url,
       page({
         url,
-        title: '新加坡小学华文听写词语表 P1–P6 | Chinese Spelling Lists – 写华文',
+        title: '新加坡小学华文听写词语表 P1–P6 | Chinese Tingxie Lists – 小华听写',
         description: `新加坡小学 P1 到 P6 华文听写常用词 ${words.length} 个，按年级整理，附拼音、英文和考卷例句，可打印、可在线手写练习。`,
         body,
         jsonld: { '@context': 'https://schema.org', '@graph': [breadcrumbLd(crumbItems)] },

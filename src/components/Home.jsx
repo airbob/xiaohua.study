@@ -3,6 +3,7 @@ import { GRADES, gradeStatus, gradeWordCount } from '../lib/levels.js'
 import { loadHistory, loadMistakes, loadLevels, wordsToday } from '../lib/storage.js'
 import { useAccount, clearNotice } from '../lib/account.js'
 import Mascot from './Mascot.jsx'
+import Footer from './Footer.jsx'
 import { Lock, Tent, Compass, Chest, Stars } from './Icons.jsx'
 
 export const DAILY_GOAL = 10
@@ -20,7 +21,7 @@ function homeGrade(child, history) {
   return last ? last.source.slice(0, 2) : 'P1'
 }
 
-export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview, onAccount }) {
+export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview }) {
   const account = useAccount()
   const v = account.version
   const levels = useMemo(loadLevels, [v])
@@ -90,8 +91,6 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview, on
         </section>
 
         <aside className="side">
-          <AccountPill account={account} onAccount={onAccount} />
-
           {account.notice && (
             <div className="notice" role="status">
               <span>{account.notice}</span>
@@ -150,50 +149,11 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview, on
         </aside>
       </main>
 
-      <footer className="home-foot">
-        <h2>词语表</h2>
-        <ul className="wordlist-links">
-          {GRADES.map((l) => (
-            <li key={l}>
-              <a href={`/words/${l.toLowerCase()}/`}>{l} 华文听写词语表</a>
-            </li>
-          ))}
-        </ul>
-        <p>
-          写华文是给新加坡小学生的华文听写练习：听读音、看拼音，在田字格里把整个词写出来，写完逐个字检查笔画、笔顺和方向。词语整理自 P1–P6 华文考卷里最常出现的词。
-        </p>
-        <p lang="en">Free Chinese spelling (听写) practice for Singapore primary school students — handwrite each word and get stroke-by-stroke feedback.</p>
-      </footer>
+      <Footer />
     </div>
   )
 }
 
-function AccountPill({ account, onAccount }) {
-  if (account.status === 'loading') return <div className="account-pill ghost">…</div>
-  if (account.status === 'guest' || account.status === 'offline')
-    return (
-      <button className="account-pill" onClick={() => onAccount('login')}>
-        <span className="who">登录</span>
-        <span className="hint">保存每个孩子的进度</span>
-      </button>
-    )
-  const p = account.profiles.find((x) => x.id === account.activeId)
-  return (
-    <button className="account-pill" onClick={() => onAccount(account.child ? 'child' : p ? 'account' : 'profile-new')}>
-      {p ? (
-        <>
-          <span className="avatar">{p.avatar}</span>
-          <span className="who">{p.name}</span>
-          <span className="hint">{p.grade}{account.child ? '' : ' · 切换'}</span>
-        </>
-      ) : (
-        <span className="who">＋ 添加孩子</span>
-      )}
-    </button>
-  )
-}
-
-// Whole row is the tap target; the pill on the right shows 开/关 at a glance.
 function Toggle({ label, hint, on, set }) {
   return (
     <button type="button" role="switch" aria-checked={!!on} className="switch-row" onClick={() => set(!on)}>

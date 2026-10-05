@@ -5,6 +5,7 @@ import { useAccount } from '../lib/account.js'
 import { speakWord } from '../lib/speech.js'
 import { Back, Tent, Campfire, Sprout } from './Icons.jsx'
 import Mascot from './Mascot.jsx'
+import Footer from './Footer.jsx'
 import { GRADES } from '../lib/levels.js'
 
 const byWord = new Map(WORDS.map((w) => [w.word, w]))
@@ -27,6 +28,7 @@ export default function ReviewCamp({ prefs, onPrefs, onBack, onStart }) {
   const round = shown.slice(0, ROUND)
 
   return (
+    <>
     <div className="camp-page">
       <header className="camp-head">
         <button className="btn-chunky back" onClick={onBack} aria-label="回到地图"><Back /> <span className="hide-sm">地图</span></button>
@@ -107,5 +109,7 @@ export default function ReviewCamp({ prefs, onPrefs, onBack, onStart }) {
         </aside>
       </div>
     </div>
+    <Footer />
+    </>
   )
 }

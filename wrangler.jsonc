@@ -28,7 +28,7 @@
   "vars": {
     "SITE_URL": "https://xiaohua.study",
     "GOOGLE_CLIENT_ID": "",
-    "MAIL_FROM": "写华文 <login@xiaohua.study>"
+    "MAIL_FROM": "小华听写 <login@xiaohua.study>"
   },
   "observability": { "enabled": true }
 }

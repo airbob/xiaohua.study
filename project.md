@@ -1,4 +1,7 @@
-# 写华文 (xiehuawen)
+# 小华听写 Xiaohua (repo: xiehuawen)
+
+Brand: **小华听写** · English: **Xiaohua · Chinese Tingxie Practice** · domain xiaohua.study.
+The game world (map) is **汉字岛**; the mascot is **墨墨**.
 
 ## What it is
 A web app for Singapore primary school students to practise writing Chinese words

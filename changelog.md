@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 — 2026-10-05
+- Google Analytics (G-SDETN3W1KN) on the app (`index.html`) and every generated 词语表 page (`scripts/seo-pages.mjs`). The tag only loads on xiaohua.study (and subdomains), so `npm run dev` / localhost visits aren't counted.
+- Renamed 写华文 → **小华听写** (English: Xiaohua · Chinese Tingxie Practice), matching xiaohua.study. 汉字岛 stays the name of the map/game world, 墨墨 the mascot. Updated page titles, share card (new og.png), structured data, word-list pages, sign-in email and sender name.
+- Top nav bar on every page (designer's update): 小华听写 brand, 汉字岛地图 / 词语表 / 复习营地, and a prominent yellow 登录 / 注册 with an ⓘ popover explaining what signing in gives (guests can still play everything). Signed in, it shows the child's avatar, name and grade. The account pill left the home sidebar. Word-list pages share the same bar; their login button opens the app's sign-in (/?go=login). On phones the links take a second row, hidden while writing so the cells keep their size.
+- Site footer (designer's 页脚) on the home page, 复习营地 and the word-list pages: 按年级看词语表 (one island per grade), about 小华听写, 我们的其他作品 (SGExamHub, 小华 App), about text with the CC-CEDICT credit (no copyright row). Not shown while writing or on the level-complete screen.
+
 ## 0.6.0 — 2026-10-04
 - New 汉字岛 design (from the designer's mock): island map home, wooden 田字格 frames, 墨墨 the ink-drop guide, ZCOOL KuaiLe display type.
 - Levels: each grade is cut into levels of ~10 words (most frequent first); finishing a level earns 1–3 stars (3 = at most one word wrong). Islands show progress, "你在这里", and locks above the child's grade (still playable).
