@@ -32,8 +32,8 @@
     "GOOGLE_CLIENT_ID": "",
     "MAIL_FROM": "小华听写 <login@xiaohua.study>",
     // Stripe Price ids for 小华听写 Plus (S$6.98 / month, S$68.98 / year) — set once created in Stripe
-    "STRIPE_PRICE_MONTH": "",
-    "STRIPE_PRICE_YEAR": ""
+    "STRIPE_PRICE_MONTH": "price_1UN5DnINh9QiqbYQwXZNZDP9",
+    "STRIPE_PRICE_YEAR": "price_1UN5DOINh9QiqbYQMaH9JiUC"
   },
   "observability": { "enabled": true }
 }
