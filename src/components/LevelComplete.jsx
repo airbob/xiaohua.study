@@ -3,7 +3,9 @@ import Mascot from './Mascot.jsx'
 import { Chest, BigStar, Tent } from './Icons.jsx'
 import { setScore, wordScore, isPerfect, charNotes } from '../lib/score.js'
 import { starsFor, toNextStar } from '../lib/levels.js'
-import { recordSet } from '../lib/storage.js'
+import { recordSet, wordsToday } from '../lib/storage.js'
+import { track } from '../lib/analytics.js'
+import { DAILY_GOAL } from './Home.jsx'
 import { useAccount } from '../lib/account.js'
 
 const mmss = (ms) => {
@@ -36,6 +38,7 @@ export default function LevelComplete({ results, kind, level, stats, onHome, onN
   useEffect(() => {
     if (saved.current) return
     saved.current = true
+    const before = wordsToday()
     recordSet(
       results.map((r) => ({
         word: r.word,
@@ -48,6 +51,18 @@ export default function LevelComplete({ results, kind, level, stats, onHome, onN
       kind === 'level' ? `${level.grade}:${level.level}` : kind,
       kind === 'level' ? { ...level, stars, correct } : null,
     )
+    const summary = {
+      correct,
+      total: n,
+      hints: results.filter((r) => r.chars.some((c) => c.hinted)).length,
+      gave_up: results.filter((r) => r.chars.some((c) => c.skipped)).length,
+      best_streak: stats.bestStreak,
+      duration_sec: Math.round(stats.ms / 1000),
+    }
+    if (kind === 'level')
+      track('level_end', { level_name: `${level.grade}-${level.level}`, grade: level.grade, level: level.level, success: true, stars, ...summary })
+    else track('practice_end', { kind, ...summary })
+    if (before < DAILY_GOAL && wordsToday() >= DAILY_GOAL) track('daily_goal_complete', { words: wordsToday() })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const title = kind === 'level' ? `第 ${level.level} 关 通关！` : kind === 'review' ? '复习完成！' : '探险完成！'

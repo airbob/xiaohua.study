@@ -26,6 +26,11 @@ its reference strokes: right / wrong stroke order / written wrong, with notes li
 `src/styles.css`; desktop/iPad use the mock's two columns, phones a single column with the map
 as a zigzag.
 
+## Analytics
+Google Analytics G-SDETN3W1KN, loaded only on xiaohua.study (index.html + scripts/seo-pages.mjs).
+Events go through `src/lib/analytics.js` (`track`, `trackScreen`, `setAudience`); never put
+emails, names or free text in event params.
+
 ## Word bank
 `data/words.json`: 1,181 words with pinyin, an English gloss and an exam example sentence.
 - P2–P6: mined from 411 CL exam papers on sgexamhub.com (OCR in

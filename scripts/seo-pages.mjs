@@ -247,6 +247,7 @@ const SCRIPT = `
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-say]'); if (!b) return
     var w = b.getAttribute('data-say')
+    if (window.gtag) gtag('event', 'word_listen', { grade: document.body.dataset.grade || '(all)' })
     function fallback() { try { var u = new SpeechSynthesisUtterance(w); u.lang = 'zh-CN'; u.rate = 0.8; speechSynthesis.cancel(); speechSynthesis.speak(u) } catch (_) {} }
     try { var a = new Audio('/audio/w/' + encodeURIComponent(w) + '.mp3'); a.play().catch(fallback) } catch (_) { fallback() }
   })

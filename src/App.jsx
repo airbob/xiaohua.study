@@ -8,6 +8,7 @@ import { buildSet } from './lib/bank.js'
 import { GRADES, levelWords, levelCount, gradeStatus } from './lib/levels.js'
 import { loadPrefs, savePrefs, loadLevels } from './lib/storage.js'
 import { useAccount, initAccount, showNotice } from './lib/account.js'
+import { track, trackScreen } from './lib/analytics.js'
 import { LoginModal, ProfileModal, AccountSheet, ChildSheet } from './components/AccountUI.jsx'
 
 const LOGIN_ERRORS = {
@@ -29,12 +30,14 @@ export default function App() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search)
     const err = q.get('login_error')
+    const loggedIn = q.get('login') === 'ok' // back from the emailed link or Google
     if (q.has('login') || err) {
       q.delete('login')
       q.delete('login_error')
       window.history.replaceState(null, '', window.location.pathname + (q.toString() ? `?${q}` : ''))
     }
     if (err) showNotice(LOGIN_ERRORS[err] || '登录没有成功，请再试一次')
+    if (loggedIn) track('login', { method: 'link_or_google' })
     initAccount()
   }, [])
 
@@ -57,14 +60,26 @@ export default function App() {
     setScreen(next)
     window.scrollTo(0, 0)
   }
+  // the first screen is already counted by gtag('config') on load; report later screens only
+  const firstScreen = useRef(true)
+  useEffect(() => {
+    if (firstScreen.current) {
+      firstScreen.current = false
+      return
+    }
+    trackScreen(screen.name)
+  }, [screen.name, screen.id])
 
   /** kind: 'level' (with level = { grade, level }) | 'mix' | 'review' (with words) */
-  const play = (kind, { level = null, words = null } = {}) => {
+  const play = (kind, { level = null, words = null, from = 'app' } = {}) => {
     const list = words || (kind === 'level' ? levelWords(level.grade, level.level) : buildSet('mix'))
     if (!list.length) return
+    if (kind === 'level')
+      track('level_start', { level_name: `${level.grade}-${level.level}`, grade: level.grade, level: level.level, mode: prefs.mode, from })
+    else track('practice_start', { kind, words: list.length, mode: prefs.mode, from })
     go({ name: 'practice', kind, level, words: list, id: Date.now() })
   }
-  const startLevel = (grade, level) => play('level', { level: { grade, level } })
+  const startLevel = (grade, level, from) => play('level', { level: { grade, level }, from })
   const currentLevel = (grade) => gradeStatus(grade, loadLevels()[grade]).current
 
   /** After level n: n+1 in the same grade, else the next grade's current level, else home. */
@@ -83,11 +98,14 @@ export default function App() {
     if (!q && !dest) return
     window.history.replaceState(null, '', window.location.pathname)
     if (dest === 'review') return go({ name: 'review' })
-    if (dest === 'login') return setModal('login')
-    if (q === 'MIX') play('mix')
+    if (dest === 'login') {
+      track('login_open', { from: 'wordlist' })
+      return setModal('login')
+    }
+    if (q === 'MIX') play('mix', { from: 'wordlist' })
     else if (GRADES.includes(q)) {
       const n = Number(params.get('level'))
-      startLevel(q, Number.isInteger(n) && n >= 1 && n <= levelCount(q) ? n : currentLevel(q))
+      startLevel(q, Number.isInteger(n) && n >= 1 && n <= levelCount(q) ? n : currentLevel(q), 'wordlist')
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -137,7 +155,10 @@ export default function App() {
         onNext={screen.kind === 'level' ? nextLevel(screen.level) : null}
         onAgain={() => (screen.kind === 'review' ? go({ name: 'review' }) : play('mix'))}
         onReview={(wrong) => play('review', { words: wrong.map(({ chars, ...w }) => w) })}
-        onLogin={() => setModal('login')}
+        onLogin={() => {
+          track('login_open', { from: 'complete' })
+          setModal('login')
+        }}
       />
     )
   else if (screen.name === 'review')

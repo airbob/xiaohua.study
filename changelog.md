@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.6.1 — 2026-10-05
+- GA events: a virtual page view per screen (/map, /practice, /complete, /camp — the app doesn't change the URL), level_start / level_end (grade, level, stars, correct, hints, gave_up, best_streak, duration), practice_start / practice_end for 随机探险 and 复习营地, login (method), login_open (where from) and login_info_open, child_profile_create, daily_goal_complete, and word_listen on the 词语表 pages. User property account_type (guest / parent / child) + grade. No emails, names or other personal data are sent.
 - Google Analytics (G-SDETN3W1KN) on the app (`index.html`) and every generated 词语表 page (`scripts/seo-pages.mjs`). The tag only loads on xiaohua.study (and subdomains), so `npm run dev` / localhost visits aren't counted.
 - Renamed 写华文 → **小华听写** (English: Xiaohua · Chinese Tingxie Practice), matching xiaohua.study. 汉字岛 stays the name of the map/game world, 墨墨 the mascot. Updated page titles, share card (new og.png), structured data, word-list pages, sign-in email and sender name.
 - Top nav bar on every page (designer's update): 小华听写 brand, 汉字岛地图 / 词语表 / 复习营地, and a prominent yellow 登录 / 注册 with an ⓘ popover explaining what signing in gives (guests can still play everything). Signed in, it shows the child's avatar, name and grade. The account pill left the home sidebar. Word-list pages share the same bar; their login button opens the app's sign-in (/?go=login). On phones the links take a second row, hidden while writing so the cells keep their size.

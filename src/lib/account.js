@@ -1,6 +1,7 @@
 // Signed-in parent + child profiles, as a tiny store React subscribes to.
 import { useSyncExternalStore } from 'react'
 import { api } from './api.js'
+import { track, setAudience } from './analytics.js'
 import { setScope, cacheProfile, flushOutbox, guestData, hasGuestData } from './storage.js'
 
 const KEY_ACTIVE = 'xhw.activeProfile'
@@ -43,6 +44,7 @@ export async function initAccount() {
     const id = child ? profiles[0]?.id : profiles.find((p) => p.id === remembered())?.id || profiles[0]?.id || null
     setScope(id)
     set({ status: 'signed-in', child: !!child, user, profiles, activeId: id })
+    setAudience({ type: child ? 'child' : 'parent', grade: profiles.find((p) => p.id === id)?.grade })
     flushOutbox()
     if (id) await refreshProgress(id)
   } catch (e) {
@@ -51,7 +53,10 @@ export async function initAccount() {
     if (e.code === 'offline' && remembered()) {
       setScope(remembered())
       set({ status: 'offline', activeId: remembered() })
-    } else set({ status: 'guest', child: false, user: null, profiles: [], activeId: null })
+    } else {
+      set({ status: 'guest', child: false, user: null, profiles: [], activeId: null })
+      setAudience({ type: 'guest' })
+    }
   }
 }
 
@@ -69,12 +74,14 @@ export async function selectProfile(id) {
   remember(id)
   setScope(id)
   set({ activeId: id })
+  setAudience({ type: state.child ? 'child' : 'parent', grade: state.profiles.find((p) => p.id === id)?.grade })
   if (id) await refreshProgress(id)
 }
 
 export async function createProfile({ name, grade, avatar }) {
   const first = state.profiles.length === 0
   const { profile } = await api('/api/profiles', { method: 'POST', body: { name, grade, avatar } })
+  track('child_profile_create', { grade, first_child: first })
   set({ profiles: [...state.profiles, profile] })
   // the first child inherits whatever was practised on this device before signing in
   if (first && hasGuestData()) {
@@ -132,6 +139,7 @@ export const familyEmail = () => {
 /** A child signs in with the parent's email + their PIN; this device stays signed in for 6 months. */
 export async function childSignIn(email, pin) {
   await api('/api/auth/child', { method: 'POST', body: { email, pin } })
+  track('login', { method: 'pin' })
   try {
     localStorage.setItem(KEY_FAMILY, email.trim().toLowerCase())
   } catch {
@@ -164,4 +172,8 @@ export async function revokeDevices(id) {
 }
 
 export const sendEmailLink = (email) => api('/api/auth/email/start', { method: 'POST', body: { email } })
-export const verifyEmailCode = (email, code) => api('/api/auth/email/code', { method: 'POST', body: { email, code } })
+export const verifyEmailCode = (email, code) =>
+  api('/api/auth/email/code', { method: 'POST', body: { email, code } }).then((r) => {
+    track('login', { method: 'email_code' })
+    return r
+  })

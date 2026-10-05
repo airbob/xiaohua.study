@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAccount } from '../lib/account.js'
+import { track } from '../lib/analytics.js'
 
 const LINKS = [
   { key: 'map', label: '汉字岛地图' },
@@ -50,7 +51,8 @@ export default function NavBar({ active = 'none', onNav, onAccount }) {
 
   const guest = account.status === 'guest' || account.status === 'offline'
   const child = account.profiles.find((p) => p.id === account.activeId)
-  const login = () => {
+  const login = (from) => {
+    track('login_open', { from })
     setInfo(false)
     onAccount('login')
   }
@@ -94,10 +96,13 @@ export default function NavBar({ active = 'none', onNav, onAccount }) {
           <>
             <span className="guest-note">游客模式 · 也能直接练</span>
             <span className="login-wrap">
-              <button className="login-btn" onClick={login}>
+              <button className="login-btn" onClick={() => login('nav')}>
                 <UserIcon /> 登录 / 注册
               </button>
-              <button className="info-dot" aria-label="登录有什么好处" aria-expanded={info} onClick={() => setInfo(!info)}>
+              <button className="info-dot" aria-label="登录有什么好处" aria-expanded={info} onClick={() => {
+                  if (!info) track('login_info_open')
+                  setInfo(!info)
+                }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
                   <circle cx="12" cy="5.5" r="2.6" fill="#1B1B26" />
                   <rect x="9.6" y="10" width="4.8" height="11" rx="2.2" fill="#1B1B26" />
@@ -130,7 +135,7 @@ export default function NavBar({ active = 'none', onNav, onAccount }) {
                   </div>
                   <div className="perks-actions">
                     <button className="btn" onClick={() => setInfo(false)}>先直接练</button>
-                    <button className="btn primary" onClick={login}>登录 / 注册</button>
+                    <button className="btn primary" onClick={() => login('nav_info')}>登录 / 注册</button>
                   </div>
                 </div>
               )}
