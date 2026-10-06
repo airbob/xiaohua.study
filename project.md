@@ -98,6 +98,13 @@ Pro (S$6.98/mo, S$68.98/yr, no trial): up to 6 children, cloud progress, child P
   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET. Until they are set, checkout answers
   "付费功能即将开放". Webhook events: checkout.session.completed,
   customer.subscription.created / updated / deleted.
+- 订阅管理 (`src/components/PlanPage.jsx`, `worker/billing.js`): subscription details + invoices
+  from Stripe; cancel / resume via cancel_at_period_end (reasons in the `cancellations` table and
+  Stripe cancellation_details); plan switches are a two-phase subscription schedule that changes
+  the price at the next renewal (no proration) — releasing the schedule undoes it, and cancelling
+  releases it first. Card changes use a portal session with flow_data payment_method_update.
+- Local Stripe testing: `.dev.vars` holds the test-mode key and test price ids; `/api/billing/sync`
+  pulls the subscription after Checkout (no webhook needed locally).
 - Lists and report: `worker/plus.js` (word_lists table; report aggregates sets + attempts by
   the viewer's time zone, weeks start Monday).
 - Legal drafts: docs/legal/terms.md, privacy.md — fill placeholders, publish, then set

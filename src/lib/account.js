@@ -227,14 +227,25 @@ export async function startCheckout(interval) {
   window.location.href = url
 }
 
-/** Stripe Customer Portal: change plan, update card, cancel. */
-export async function openPortal() {
-  const { url } = await api('/api/billing/portal', { method: 'POST' })
+// ---- 订阅管理 (our own page; Stripe only for the card) ----
+export const fetchSubscription = () => api('/api/billing/subscription')
+export async function cancelSubscription(reason, comment) {
+  await api('/api/billing/cancel', { method: 'POST', body: { reason, comment } })
+  await initAccount()
+}
+export async function resumeSubscription() {
+  await api('/api/billing/resume', { method: 'POST' })
+  await initAccount()
+}
+export const switchPlan = (interval) => api('/api/billing/switch', { method: 'POST', body: { interval } })
+export async function updateCard() {
+  const { url } = await api('/api/billing/card', { method: 'POST' })
   window.location.href = url
 }
 
 /** After Stripe sends the family back: the webhook may land a moment later, so look a few times. */
 export async function awaitPlus() {
+  await api('/api/billing/sync', { method: 'POST' }).catch(() => {})
   for (let i = 0; i < 6; i++) {
     await initAccount()
     if (state.plan.plus) return true

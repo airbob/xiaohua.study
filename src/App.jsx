@@ -4,6 +4,7 @@ import NavBar from './components/NavBar.jsx'
 import ListsPage from './components/ListsPage.jsx'
 import ReportPage from './components/ReportPage.jsx'
 import { PlusModal } from './components/Plus.jsx'
+import PlanPage from './components/PlanPage.jsx'
 import Practice from './components/Practice.jsx'
 import LevelComplete from './components/LevelComplete.jsx'
 import ReviewCamp from './components/ReviewCamp.jsx'
@@ -63,7 +64,11 @@ export default function App() {
         showNotice(ok ? '欢迎加入 Pro！练习记录已经开始同步到云端。' : '付款成功，Pro 正在开通，稍等一下再刷新页面。')
         if (ok) track('purchase', { currency: 'SGD', items: [{ item_name: 'plus' }] })
       })
-    } else initAccount()
+    } else {
+      initAccount()
+      // back from Stripe's change-card page (or the full portal): show 订阅管理 again
+      if (billing === 'card' || billing === 'portal') setScreen({ name: 'plan' })
+    }
   }, [])
 
   // a parent with no child yet is asked (once per visit) to add one
@@ -152,6 +157,10 @@ export default function App() {
             setModal(null)
             go({ name: 'lists' })
           }}
+          onPlan={() => {
+            setModal(null)
+            go({ name: 'plan' })
+          }}
         />
       )}
       {(modal === 'profile-new' || modal === 'profile-first') && (
@@ -162,6 +171,10 @@ export default function App() {
           reason={modal.plus === true ? null : modal.plus}
           onClose={() => setModal(null)}
           onLogin={() => setModal('login')}
+          onPlan={() => {
+            setModal(null)
+            go({ name: 'plan' })
+          }}
         />
       )}
       {modal?.edit && (
@@ -220,6 +233,7 @@ export default function App() {
         onUpgrade={() => setModal({ plus: '自定义词组是 Pro 功能。' })}
       />
     )
+  else if (screen.name === 'plan') page = <PlanPage onBack={home} onUpgrade={() => setModal({ plus: true })} />
   else if (screen.name === 'report')
     page = <ReportPage profileId={screen.profileId} onBack={home} onPick={(id) => go({ name: 'report', profileId: id })} />
   else if (screen.name === 'review')

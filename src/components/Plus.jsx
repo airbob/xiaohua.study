@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAccount, startCheckout, openPortal } from '../lib/account.js'
+import { useAccount, startCheckout } from '../lib/account.js'
 import { t, useT, getLang } from '../lib/i18n.js'
 import { track } from '../lib/analytics.js'
 import Mascot from './Mascot.jsx'
@@ -20,13 +20,15 @@ const FEATURES = [
   ['更多新功能', '定制页面、定制吉祥物等，开发好就解锁'],
 ]
 
-/** What to tell a parent when 管理订阅 can't open the Stripe portal. */
+/** What to tell a parent when a 订阅管理 action fails. */
 export function portalError(e) {
   return (
     {
       stripe_customer_missing: t('找不到这个订阅的付款记录。请发邮件给我们，我们帮你处理。'),
       portal_not_configured: t('订阅管理暂时打不开，我们正在处理，请稍后再试。'),
       no_subscription: t('这个账号还没有订阅。'),
+      not_active: t('这个订阅已经结束了。'),
+      cancelling: t('订阅已取消，先恢复订阅才能换方案。'),
     }[e.code] || t('出错了，请再试一次')
   )
 }
@@ -40,7 +42,7 @@ export function PlusTag() {
  * The upgrade sheet. Guests are asked to log in first (onLogin); children are told to ask a
  * parent; a parent who is already on Pro sees their plan and can manage it.
  */
-export function PlusModal({ onClose, onLogin, reason }) {
+export function PlusModal({ onClose, onLogin, onPlan, reason }) {
   const t = useT()
   const a = useAccount()
   const [interval, setInterval_] = useState('year')
@@ -58,15 +60,6 @@ export function PlusModal({ onClose, onLogin, reason }) {
       await startCheckout(interval)
     } catch (e) {
       setError(e.code === 'billing_not_configured' ? t('付费功能即将开放，敬请期待！') : t('出错了，请再试一次'))
-      setBusy(false)
-    }
-  }
-  const manage = async () => {
-    setBusy(true)
-    try {
-      await openPortal()
-    } catch (e) {
-      setError(portalError(e))
       setBusy(false)
     }
   }
@@ -112,7 +105,7 @@ export function PlusModal({ onClose, onLogin, reason }) {
               </span>
             </p>
             {a.plan.canManage && (
-              <button className="btn" onClick={manage} disabled={busy}>{t('管理订阅')}</button>
+              <button className="btn" onClick={onPlan}>{t('管理订阅')}</button>
             )}
           </div>
         ) : a.child ? (

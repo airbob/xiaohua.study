@@ -47,7 +47,7 @@ export const planInfo = (user) => ({
   interval: user.plan_interval || null,
   status: user.subscription_status || null,
   cancelAtPeriodEnd: !!user.cancel_at_period_end,
-  canManage: !!user.stripe_customer_id,
+  canManage: !!user.stripe_subscription_id,
 })
 
 const publicProfile = (p) => ({ id: p.id, name: p.name, grade: p.grade, avatar: p.avatar })
@@ -292,6 +292,7 @@ export async function deleteAccount(env, user) {
     env.DB.prepare('DELETE FROM profiles WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM login_tokens WHERE email = ?').bind(user.email),
     env.DB.prepare('DELETE FROM word_lists WHERE user_id = ?').bind(user.id),
+    env.DB.prepare('DELETE FROM cancellations WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
   )
   await env.DB.batch(stmts)

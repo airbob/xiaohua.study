@@ -1,5 +1,6 @@
-// 小华听写 Plus via Stripe: Checkout for new subscriptions, the Customer Portal for changes and
-// cancellation, and a webhook that keeps users.plus_until in step with the subscription.
+// 小华听写 Pro via Stripe: Checkout for new subscriptions, our own 订阅管理 page for everything
+// else (cancel with a reason, resume, switch plan at the next renewal, receipts), the Customer
+// Portal only for changing the card, and a webhook that keeps users.plus_until in step.
 // Secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET. Vars: STRIPE_PRICE_MONTH, STRIPE_PRICE_YEAR.
 import { now, DAY, json, readJson, HttpError } from './util.js'
 
@@ -8,13 +9,17 @@ const LIVE_STATUSES = new Set(['active', 'trialing', 'past_due'])
 
 export const isPlus = (user) => !!user.plus_until && user.plus_until > now()
 
-/** Stripe REST call with form-encoded params; nested keys like 'line_items[0][price]'. */
+/**
+ * Stripe REST call with form-encoded params; nested keys like 'line_items[0][price]'. Params can
+ * be an object or a list of [key, value] pairs (for repeated keys such as 'expand[]').
+ */
 async function stripe(env, method, path, params) {
   if (!env.STRIPE_SECRET_KEY) throw new HttpError(503, 'billing_not_configured')
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+  const qs = params ? new URLSearchParams(params) : null
+  const res = await fetch(`https://api.stripe.com/v1/${path}${method === 'GET' && qs ? `?${qs}` : ''}`, {
     method,
     headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params ? new URLSearchParams(params) : undefined,
+    body: method !== 'GET' && qs ? qs : undefined,
   })
   const data = await res.json()
   if (!res.ok) {
@@ -66,13 +71,170 @@ export async function checkout(request, env, user) {
   return json({ url: session.url })
 }
 
-/** Manage / cancel / change card: returns a Stripe Customer Portal URL. */
+/** The full Stripe Customer Portal (kept as a fallback; the app uses its own page). */
 export async function portal(request, env, user) {
   if (user.childId) throw new HttpError(403, 'parent_only')
   if (!user.stripe_customer_id) throw new HttpError(400, 'no_subscription')
   const s = await stripe(env, 'POST', 'billing_portal/sessions', {
     customer: user.stripe_customer_id,
     return_url: `${new URL(request.url).origin}/?billing=portal`,
+  })
+  return json({ url: s.url })
+}
+
+// ---- 订阅管理 ---------------------------------------------------------------------
+
+const intervalOf = (env, price) => (price === env.STRIPE_PRICE_YEAR ? 'year' : price === env.STRIPE_PRICE_MONTH ? 'month' : null)
+const priceOf = (env, interval) => (interval === 'year' ? env.STRIPE_PRICE_YEAR : interval === 'month' ? env.STRIPE_PRICE_MONTH : null)
+const periodEnd = (sub) => sub.items?.data?.[0]?.current_period_end ?? sub.current_period_end ?? null
+const scheduleId = (sub) => (typeof sub.schedule === 'string' ? sub.schedule : sub.schedule?.id) || null
+
+/** The family's own subscription; 404 if there is none to manage. */
+async function ownSubscription(env, user, expand = []) {
+  if (user.childId) throw new HttpError(403, 'parent_only')
+  if (!user.stripe_subscription_id) throw new HttpError(404, 'no_subscription')
+  const sub = await stripe(env, 'GET', `subscriptions/${user.stripe_subscription_id}`, expand.map((e) => ['expand[]', e]))
+  const customer = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id
+  if (customer !== user.stripe_customer_id) throw new HttpError(404, 'no_subscription')
+  return sub
+}
+
+/** A plan switch waiting for the next renewal (from the subscription schedule), if any. */
+function pendingSwitch(env, sub) {
+  const sched = sub.schedule && typeof sub.schedule === 'object' ? sub.schedule : null
+  if (!sched || sched.status !== 'active') return null
+  const end = periodEnd(sub)
+  const next = (sched.phases || []).find((ph) => ph.start_date >= end)
+  const price = next?.items?.[0]?.price
+  const interval = intervalOf(env, typeof price === 'string' ? price : price?.id)
+  const current = intervalOf(env, sub.items?.data?.[0]?.price?.id)
+  return interval && interval !== current ? { interval, from: next.start_date * 1000 } : null
+}
+
+/** GET /api/billing/subscription — what the 订阅管理 page shows. */
+export async function subscription(request, env, user) {
+  const sub = await ownSubscription(env, user, ['default_payment_method', 'schedule', 'customer.invoice_settings.default_payment_method'])
+  const item = sub.items?.data?.[0]
+  const pm = sub.default_payment_method || sub.customer?.invoice_settings?.default_payment_method
+  const card = pm?.card ? { brand: pm.card.brand, last4: pm.card.last4, expMonth: pm.card.exp_month, expYear: pm.card.exp_year } : null
+  const inv = await stripe(env, 'GET', 'invoices', { customer: user.stripe_customer_id, limit: '12' })
+  // keep our copy in step (it may have changed in Stripe since the last webhook)
+  await applySubscription(env, sub)
+  return json({
+    status: sub.status,
+    interval: item?.price?.recurring?.interval || null,
+    amount: item?.price?.unit_amount ?? null,
+    currency: item?.price?.currency || 'sgd',
+    periodEnd: (periodEnd(sub) || 0) * 1000,
+    cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+    pending: pendingSwitch(env, sub),
+    card,
+    invoices: (inv.data || [])
+      .filter((i) => i.status !== 'draft')
+      .map((i) => ({
+        date: i.created * 1000,
+        amount: i.total,
+        currency: i.currency,
+        status: i.status,
+        number: i.number,
+        url: i.hosted_invoice_url,
+        pdf: i.invoice_pdf,
+      })),
+  })
+}
+
+/**
+ * POST /api/billing/sync — read the family's latest subscription straight from Stripe. Used right
+ * after Checkout so Pro switches on even if the webhook is late.
+ */
+export async function sync(request, env, user) {
+  if (user.childId) throw new HttpError(403, 'parent_only')
+  if (!user.stripe_customer_id || !env.STRIPE_SECRET_KEY) return json({ ok: true })
+  const list = await stripe(env, 'GET', 'subscriptions', { customer: user.stripe_customer_id, status: 'all', limit: '1' })
+  if (list.data?.[0]) await applySubscription(env, list.data[0])
+  return json({ ok: true })
+}
+
+/** A switch is kept as a two-phase schedule; releasing it leaves the subscription as it is now. */
+async function dropSchedule(env, sub) {
+  const id = scheduleId(sub)
+  if (id) await stripe(env, 'POST', `subscription_schedules/${id}/release`)
+}
+
+// Stripe's own cancellation feedback values
+const REASONS = { too_expensive: 1, unused: 1, missing_features: 1, too_complex: 1, switched_service: 1, low_quality: 1, other: 1 }
+
+/** POST /api/billing/cancel {reason?, comment?} — Pro ends when the paid period does. */
+export async function cancel(request, env, user) {
+  const body = await readJson(request, 4000)
+  const reason = REASONS[body.reason] ? body.reason : null
+  const comment = String(body.comment || '').trim().slice(0, 500)
+  const sub = await ownSubscription(env, user)
+  if (!LIVE_STATUSES.has(sub.status)) throw new HttpError(409, 'not_active')
+  // a subscription run by a schedule can't be cancelled directly; a pending switch goes with it
+  await dropSchedule(env, sub)
+  const params = { cancel_at_period_end: 'true' }
+  if (reason) params['cancellation_details[feedback]'] = reason
+  if (comment) params['cancellation_details[comment]'] = comment
+  const updated = await stripe(env, 'POST', `subscriptions/${sub.id}`, params)
+  await env.DB.prepare('INSERT INTO cancellations (user_id, reason, comment, plan_interval, created_at) VALUES (?, ?, ?, ?, ?)')
+    .bind(user.id, reason, comment || null, updated.items?.data?.[0]?.price?.recurring?.interval || null, now())
+    .run()
+  await applySubscription(env, updated)
+  return json({ ok: true })
+}
+
+/** POST /api/billing/resume — undo a cancellation before the period ends. */
+export async function resume(request, env, user) {
+  const sub = await ownSubscription(env, user)
+  if (!LIVE_STATUSES.has(sub.status)) throw new HttpError(409, 'not_active')
+  const updated = await stripe(env, 'POST', `subscriptions/${sub.id}`, { cancel_at_period_end: 'false' })
+  await applySubscription(env, updated)
+  return json({ ok: true })
+}
+
+/**
+ * POST /api/billing/switch {interval} — monthly ↔ yearly from the next renewal (no proration).
+ * Switching back to the current plan just drops the pending change.
+ */
+export async function switchPlan(request, env, user) {
+  const { interval } = await readJson(request, 500)
+  const target = priceOf(env, interval)
+  if (!target) throw new HttpError(400, 'bad_interval')
+  const sub = await ownSubscription(env, user)
+  if (!LIVE_STATUSES.has(sub.status)) throw new HttpError(409, 'not_active')
+  if (sub.cancel_at_period_end) throw new HttpError(409, 'cancelling')
+  const item = sub.items?.data?.[0]
+  const current = item?.price?.id
+  await dropSchedule(env, sub)
+  if (current === target) return json({ ok: true, pending: null })
+  const sched = await stripe(env, 'POST', 'subscription_schedules', { from_subscription: sub.id })
+  const phase = sched.phases[0]
+  await stripe(env, 'POST', `subscription_schedules/${sched.id}`, {
+    end_behavior: 'release',
+    proration_behavior: 'none',
+    'phases[0][items][0][price]': current,
+    'phases[0][items][0][quantity]': String(item.quantity || 1),
+    'phases[0][start_date]': String(phase.start_date),
+    'phases[0][end_date]': String(phase.end_date),
+    'phases[1][items][0][price]': target,
+    'phases[1][items][0][quantity]': '1',
+    'phases[1][proration_behavior]': 'none',
+  })
+  return json({ ok: true, pending: { interval, from: phase.end_date * 1000 } })
+}
+
+/** POST /api/billing/card — Stripe's page for just changing the card, then back to 订阅管理. */
+export async function cardUpdate(request, env, user) {
+  if (user.childId) throw new HttpError(403, 'parent_only')
+  if (!user.stripe_customer_id) throw new HttpError(404, 'no_subscription')
+  const back = `${new URL(request.url).origin}/?billing=card`
+  const s = await stripe(env, 'POST', 'billing_portal/sessions', {
+    customer: user.stripe_customer_id,
+    return_url: back,
+    'flow_data[type]': 'payment_method_update',
+    'flow_data[after_completion][type]': 'redirect',
+    'flow_data[after_completion][redirect][return_url]': back,
   })
   return json({ url: s.url })
 }
@@ -107,6 +269,8 @@ async function verify(env, header, body) {
 
 /** Copy a subscription's state onto its user. */
 async function applySubscription(env, sub) {
+  const customer = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id
+  sub = { ...sub, customer }
   const userId = sub.metadata?.user_id
   const user = userId
     ? await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(userId).first()

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.0 — 2026-10-06
+- **订阅管理** page of our own (account menu or Pro sheet → 管理订阅) instead of sending parents to Stripe: plan, price and renewal date; switch monthly ↔ yearly from the next renewal (nothing charged now, can be undone); cancel at the end of the paid period with an optional reason and comment (saved for us and sent to Stripe as cancellation feedback); resume before the period ends; card on file with 更换卡片 (Stripe's card-only page, then straight back); payment history with receipt links; a warning when a payment has failed. 中文 / EN, phone layout.
+- After Checkout the site reads the subscription from Stripe directly, so Pro switches on even if the webhook is late.
+- GA events: plan_view, plan_switch, plan_cancel (reason), plan_resume.
+
 ## 0.8.2 — 2026-10-05
 - New 墨墨: a little cuttlefish (墨鱼) holding a pencil, from the designer's drawing, replacing the ink drop. Same four moods (happy, look, worried, cheer — happy eyes, open mouth and bubbles). One drawing (`src/lib/mascot-svg.js`) is shared by the app, the footer and the 词语表 pages; in the dark footer he sits on a teal badge. New share image (og.png).
 - 管理订阅 shows "正在打开…" and a clear message when the Stripe portal can't open (instead of doing nothing); checkout replaces a saved Stripe customer that no longer exists.
