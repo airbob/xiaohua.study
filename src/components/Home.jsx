@@ -68,7 +68,7 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview, on
                   {isHere && (
                     <div className="you-are-here" aria-hidden="true">
                       <span>{t('你在这里')}</span>
-                      <Mascot size={52} />
+                      <Mascot size={64} />
                     </div>
                   )}
                   <button

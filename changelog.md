@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2 — 2026-10-05
+- New 墨墨: a little cuttlefish (墨鱼) holding a pencil, from the designer's drawing, replacing the ink drop. Same four moods (happy, look, worried, cheer — happy eyes, open mouth and bubbles). One drawing (`src/lib/mascot-svg.js`) is shared by the app, the footer and the 词语表 pages; in the dark footer he sits on a teal badge. New share image (og.png).
+- 管理订阅 shows "正在打开…" and a clear message when the Stripe portal can't open (instead of doing nothing); checkout replaces a saved Stripe customer that no longer exists.
+
 ## 0.8.1 — 2026-10-05
 - The paid plan is now called **小华听写 Pro** (was Plus) everywhere on the site, in both languages. Stripe goes live with SGD prices.
 

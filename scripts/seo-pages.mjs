@@ -1,3 +1,4 @@
+import { mascotSvg } from '../src/lib/mascot-svg.js'
 // Static, crawlable word-list pages (shared by the build and the dev server):
 //   /words/            overview of the word lists (one island per grade)
 //   /words/p1/ … /p6/  each grade's full list, cut into the same levels as the app
@@ -182,6 +183,7 @@ h2.section-title{margin:0;font-family:var(--display);font-weight:400;font-size:3
 .foot-brand{display:flex;align-items:center;gap:12px}
 .foot-brand .logo{width:44px;height:44px;font-size:26px}
 .foot-brand .n{font-family:var(--display);font-size:26px}
+.foot-brand .mascot{width:52px;height:52px;padding:3px;box-sizing:border-box;background:#8ED6D0;border:3px solid #1B1B26;border-radius:50%}
 .foot-about p{margin:0;font-size:15px;line-height:1.8;color:#e3e7f2}
 .foot-about p.en{font-size:14px;line-height:1.7;color:#b9c0d4}
 .foot-about p.credit{font-size:12px;color:#8d94aa}
@@ -233,7 +235,7 @@ const ARROW = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" strok
 const CHEVRON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1B26" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>`
 const FLAG = `<svg class="flag" width="40" height="70" viewBox="0 0 40 70" aria-hidden="true"><path d="M6 66V6" stroke="#1B1B26" stroke-width="4" stroke-linecap="round"></path><path d="M8 8h26l-7 10 7 10H8z" fill="#E4573D" stroke="#1B1B26" stroke-width="3" stroke-linejoin="round"></path></svg>`
 const WAVES = `<svg class="waves" aria-hidden="true"><path d="M40 80 q20 -10 40 0 t40 0" stroke="#FFFFFF" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path d="M520 400 q20 -10 40 0 t40 0" stroke="#FFFFFF" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path d="M180 360 q20 -10 40 0 t40 0" stroke="#FFFFFF" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path d="M900 60 q20 -10 40 0 t40 0" stroke="#FFFFFF" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path></svg>`
-const MOMO = `<svg width="64" height="70" viewBox="0 0 120 130" aria-hidden="true"><path d="M60 6 C 52 26 20 56 20 84 a40 40 0 0 0 80 0 C 100 56 68 26 60 6 Z" fill="#8ED6D0" stroke="#1B1B26" stroke-width="5"></path><circle cx="45" cy="82" r="9" fill="#FFFFFF"></circle><circle cx="75" cy="82" r="9" fill="#FFFFFF"></circle><circle cx="47" cy="84" r="4.5" fill="#1B1B26"></circle><circle cx="77" cy="84" r="4.5" fill="#1B1B26"></circle><path d="M52 102 q8 7 16 0" stroke="#1B1B26" stroke-width="4" fill="none" stroke-linecap="round"></path></svg>`
+const MOMO = mascotSvg({ width: 64 })
 
 // Reads the same localStorage keys as src/lib/storage.js + account.js (guest or the
 // remembered child profile) and decorates the static page. Also plays word clips.
@@ -288,7 +290,7 @@ function footer() {
 </div></section>
 <div class="foot-wrap foot-main">
 <div class="foot-about">
-<div class="foot-brand"><span class="logo">写</span><span class="n">${L('小华听写', 'Xiaohua')}</span><svg width="46" height="50" viewBox="0 0 120 130" aria-hidden="true"><path d="M60 6 C 52 26 20 56 20 84 a40 40 0 0 0 80 0 C 100 56 68 26 60 6 Z" fill="#8ED6D0" stroke="#1B1B26" stroke-width="6"/><circle cx="45" cy="82" r="9" fill="#FFFFFF"/><circle cx="75" cy="82" r="9" fill="#FFFFFF"/><circle cx="47" cy="84" r="4.5" fill="#1B1B26"/><circle cx="77" cy="84" r="4.5" fill="#1B1B26"/><path d="M52 102 q8 7 16 0" stroke="#1B1B26" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
+<div class="foot-brand"><span class="logo">写</span><span class="n">${L('小华听写', 'Xiaohua')}</span>${mascotSvg({ width: 50, className: "mascot" })}</div>
 <p class="zh-only">小华听写是给新加坡小学生的华文听写练习：听读音、看拼音，在田字格里把整个词写出来，写完逐个字检查笔画、笔顺和方向。词语整理自 P1–P6 华文考卷里最常出现的词。</p>
 <p class="en" lang="en">Xiaohua (小华听写) is free Chinese tingxie (听写, spelling) practice for Singapore primary school students — handwrite each word and get stroke-by-stroke feedback.</p>
 <p class="credit">${L('词语整理自新加坡小学华文考卷（2019–2025）· 英文释义来自 CC-CEDICT（CC BY-SA 4.0）', 'Words from Singapore primary school Chinese exam papers (2019–2025) · English meanings from CC-CEDICT (CC BY-SA 4.0)')}</p>

@@ -1,3 +1,4 @@
+import Mascot from './Mascot.jsx'
 import { GRADES, gradeWordCount } from '../lib/levels.js'
 import { useT, getLang } from '../lib/i18n.js'
 
@@ -36,14 +37,7 @@ export default function Footer() {
           <div className="foot-brand">
             <span className="brand-logo big">写</span>
             <span className="display">{t('小华听写')}</span>
-            <svg width="46" height="50" viewBox="0 0 120 130" aria-hidden="true">
-              <path d="M60 6 C 52 26 20 56 20 84 a40 40 0 0 0 80 0 C 100 56 68 26 60 6 Z" fill="#8ED6D0" stroke="#1B1B26" strokeWidth="6" />
-              <circle cx="45" cy="82" r="9" fill="#FFFFFF" />
-              <circle cx="75" cy="82" r="9" fill="#FFFFFF" />
-              <circle cx="47" cy="84" r="4.5" fill="#1B1B26" />
-              <circle cx="77" cy="84" r="4.5" fill="#1B1B26" />
-              <path d="M52 102 q8 7 16 0" stroke="#1B1B26" strokeWidth="4" fill="none" strokeLinecap="round" />
-            </svg>
+            <Mascot size={50} />
           </div>
           <p>{t('小华听写是给新加坡小学生的华文听写练习：听读音、看拼音，在田字格里把整个词写出来，写完逐个字检查笔画、笔顺和方向。词语整理自 P1–P6 华文考卷里最常出现的词。')}</p>
           {/* in English mode the paragraph above is already English */}
