@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.2 — 2026-10-08
+- While the site loads, a small dark splash with the 写 logo shows instead of the plain unstyled text and word-list links (that text stays in the page for search engines and visitors without JavaScript).
+
 ## 0.9.1 — 2026-10-08
 - Phones held upright: the top bar hides while writing (the page's own ‹ button stays), and the writing cells are sized by the screen width instead of squeezed to fit the screen height — a two-character word gets two big cells (about 280px on an iPhone) stacked one above the other, and the child scrolls down to 写好了. A strip beside the cells is left free for scrolling; one cell always fits on screen. 3–4 character words keep the 2 × 2 grid, also sized by width; tablets and computers are unchanged.
 - Every writing cell has its own 撤销 / 擦掉 / 提示 / 不会写: a row under the cell on computers and tablets, a column beside it on a phone's stacked cells (a row of icons for 3–4 character words on phones). On big screens the cells now grow up to 560px (was 380px). In the two-column layout 写好了 now lines up with the bottom of the cells' button row instead of sitting at the bottom of the screen. 撤销 and 擦掉 only touch that cell; 提示 shows only that character and only that character loses a star; 不会写 greys out that cell (tap again to take it back) and the rest are still graded — when every character is 不会写 the answers show straight away. The shared button row under the cells is gone; only 写好了 is left there.
