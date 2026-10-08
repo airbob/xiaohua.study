@@ -19,6 +19,17 @@ export const Undo = ({ size = 20 }) => (
 export const Eraser = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h14M7 15l8-10 4 4-8 10H7z" {...line} strokeWidth="2.6" /></svg>
 )
+export const Bulb = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M9 17h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" {...line} strokeWidth="2.4" />
+  </svg>
+)
+export const Question = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M9 9a3 3 0 1 1 4.2 2.7c-.8.4-1.2 1.1-1.2 1.9V15" {...line} strokeWidth="2.6" />
+    <circle cx="12" cy="19" r="1.5" fill="#1B1B26" />
+  </svg>
+)
 export const Check = ({ size = 30, color = '#1B1B26', width = 3.4 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10" {...line} stroke={color} strokeWidth={width} /></svg>
 )

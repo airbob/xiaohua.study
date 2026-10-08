@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import FreePad, { chrome, frameGap } from './FreePad.jsx'
+import FreePad, { chrome, frameGap, TOOLS_SIDE, TOOLS_BELOW } from './FreePad.jsx'
 import { ResultFrame } from './CharCompare.jsx'
 import StrokeReplay from './StrokeReplay.jsx'
 import { MascotSays } from './Mascot.jsx'
-import { Speaker, Back, Undo, Eraser, Check, Chest, Stars } from './Icons.jsx'
+import { Speaker, Back, Undo, Eraser, Bulb, Question, Check, Chest, Stars } from './Icons.jsx'
 import { speakWord, speakSentence, canSpeak } from '../lib/speech.js'
 import { loadChar, preloadWord } from '../lib/chardata.js'
 import { gradeChar } from '../lib/grade.js'
@@ -13,10 +13,14 @@ import { soundCorrect, confettiBurst } from '../lib/celebrate.js'
 
 // keep in sync with the two-column media query in styles.css
 const SIDE_LAYOUT = '(min-width: 900px), (orientation: landscape) and (min-width: 640px)'
+// keep in sync with the topbar.writing rule in styles.css
+const PHONE_UPRIGHT = '(max-width: 760px) and (orientation: portrait)'
+// keep in sync with the "phones sideways" block in styles.css
+const PHONE_SIDEWAYS = '(orientation: landscape) and (max-height: 520px)'
 
 /** Biggest framed cells that fit the space left for the pad, trying every arrangement. */
 function usePadLayout(area, below, n, deps) {
-  const [layout, setLayout] = useState({ cell: 200, cols: n })
+  const [layout, setLayout] = useState({ cell: 200, cols: n, below: false })
   useLayoutEffect(() => {
     const measure = () => {
       const el = area.current
@@ -25,21 +29,36 @@ function usePadLayout(area, below, n, deps) {
       const top = el.getBoundingClientRect().top + window.scrollY
       const vh = window.visualViewport?.height || window.innerHeight
       const W = el.clientWidth
-      // side layout: leave room under the cells for the hint line + 听写/描红 switch (~110px)
-      const H = vh - top - (side ? 110 : (below.current?.offsetHeight || 0) + 24)
+      // side layout: leave room under the cells for the hint line + 听写/描红 switch (~110px);
+      // a phone held sideways hides those (styles.css), so only keep a small margin
+      const short = window.matchMedia(PHONE_SIDEWAYS).matches
+      const H = vh - top - (side ? (short ? 16 : 110) : (below.current?.offsetHeight || 0) + 24)
+      // phones upright: size the cells by the width and let the page scroll down to 写好了,
+      // keeping a single cell within the screen so a character is never cut off, and a
+      // 28px strip where a finger can scroll the page (the cells take all touches)
+      const phone = window.matchMedia(PHONE_UPRIGHT).matches
+      // each cell's buttons go in a row under it or a column beside it, whichever leaves the
+      // bigger cells (beside wins when height is short, e.g. a phone held sideways). Phones
+      // upright: beside a single column of stacked cells, under a 2 × 2 grid.
+      const placements = (cols) => (phone ? [cols > 1] : [true, false])
       // exact footprint of the framed cells (see FreePad: chrome, gaps, 8px shadow, 14px badge room)
-      const fits = (cell, cols) => {
+      const fits = (cell, cols, under) => {
         const rows = Math.ceil(n / cols)
         const outer = cell + 2 * chrome(cell)
-        const w = cols * outer + (cols - 1) * frameGap(cell)
-        const h = 14 + rows * (outer + 8) + (rows - 1) * (frameGap(cell) + 8)
-        return w <= W && h <= H
+        const unitW = outer + (under ? 0 : TOOLS_SIDE)
+        const unitH = outer + 8 + (under ? TOOLS_BELOW : 0)
+        const w = cols * unitW + (cols - 1) * frameGap(cell)
+        const h = 14 + rows * unitH + (rows - 1) * (frameGap(cell) + 8)
+        return phone ? w <= W - 28 && unitH + 14 <= vh - 120 : w <= W && h <= H
       }
-      let best = { cell: 100, cols: Math.min(n, 2) }
-      for (let cols = 1; cols <= n; cols++) {
-        let cell = 380
-        while (cell > 100 && !fits(cell, cols)) cell -= 2
-        if (cell > best.cell) best = { cell, cols }
+      const stack = phone && n <= 2
+      let best = { cell: 100, cols: stack ? 1 : Math.min(n, 2), below: !stack }
+      for (let cols = 1; cols <= (stack ? 1 : phone ? 2 : n); cols++) {
+        for (const under of placements(cols)) {
+          let cell = 560
+          while (cell > 100 && !fits(cell, cols, under)) cell -= 2
+          if (cell > best.cell) best = { cell, cols, below: under }
+        }
       }
       setLayout(best)
     }
@@ -79,7 +98,8 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
   const [retrying, setRetrying] = useState(false)
   const [charData, setCharData] = useState([])
   const [peek, setPeek] = useState(null)
-  const [hinted, setHinted] = useState(false)
+  const [hinted, setHinted] = useState([]) // per character: peeked at the answer
+  const [off, setOff] = useState([]) // per character: 不会写
   const [replay, setReplay] = useState(null)
   const [nudge, setNudge] = useState(false)
   const [streak, setStreak] = useState(0)
@@ -91,6 +111,7 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
   const below = useRef(null)
   const side = useRef(null)
   const [sideClipped, setSideClipped] = useState(false)
+  const [lift, setLift] = useState(0)
 
   const item = words[wi]
   const glyphs = [...item.word]
@@ -98,7 +119,25 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
   // answer as trace strokes. Change it on the home / review screen before starting.
   const [sessionMode] = useState(prefs.mode)
   const trace = sessionMode === 'trace'
-  const { cell, cols } = usePadLayout(area, below, glyphs.length, [phase === 'feedback', prefs.showExample, prefs.showEnglish])
+  const { cell, cols, below: toolsBelow } = usePadLayout(area, below, glyphs.length, [phase === 'feedback', prefs.showExample, prefs.showEnglish])
+
+  // Two columns: lift 写好了 so its bottom lines up with the cells' button row instead of
+  // sitting at the bottom of the screen
+  useLayoutEffect(() => {
+    const align = () => {
+      const padEl = area.current?.querySelector('.freepad')
+      if (!padEl || !below.current || !window.matchMedia(SIDE_LAYOUT).matches) return setLift(0)
+      const now = parseFloat(getComputedStyle(below.current).marginBottom) || 0
+      const want = now + below.current.getBoundingClientRect().bottom - padEl.getBoundingClientRect().bottom
+      // ...but never so far that the word card, example and tip above it stop fitting
+      const col = side.current
+      const room = col ? col.clientHeight - (col.scrollHeight - (col.querySelector('.grow')?.offsetHeight || 0)) + now : want
+      setLift(Math.max(0, Math.round(Math.min(want, room))))
+    }
+    align()
+    window.addEventListener('resize', align)
+    return () => window.removeEventListener('resize', align)
+  }, [cell, cols, phase, wi, prefs.showExample, prefs.showEnglish])
 
   // While writing, the side column is a fixed-height scroll area (so 写好了 stays on
   // screen). When its content doesn't fit, fade the bottom edge instead of cutting a
@@ -132,7 +171,7 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
 
   const submit = async () => {
     const per = pad.current.getStrokes()
-    if (per.every((s) => !s.length)) {
+    if (per.every((s) => !s.length) && !off.some(Boolean)) {
       setNudge(true)
       setTimeout(() => setNudge(false), 1800)
       return
@@ -141,16 +180,21 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
     const data = await Promise.all(glyphs.map((g) => loadChar(g).catch(() => null)))
     show(
       glyphs.map((g, i) => {
+        if (off[i]) return { char: g, status: 'blank', skipped: true, strokes: [] }
         if (!data[i]) return { char: g, status: 'unavailable', strokes: per[i] }
         const grade = gradeChar(data[i], per[i])
-        return { char: g, status: grade.status, grade, strokes: per[i], hinted }
+        return { char: g, status: grade.status, grade, strokes: per[i], hinted: !!hinted[i] }
       }),
     )
   }
 
-  const giveUp = () => {
-    const per = pad.current?.getStrokes() || glyphs.map(() => [])
-    show(glyphs.map((g, i) => ({ char: g, status: 'blank', skipped: true, strokes: per[i] })))
+  // 不会写 for one character (tap again to take it back); when every character is
+  // given up there is nothing left to write, so the answers show straight away
+  const giveUp = (i) => {
+    const o = glyphs.map((_, j) => (j === i ? !off[j] : !!off[j]))
+    if (o.every(Boolean)) return show(glyphs.map((g) => ({ char: g, status: 'blank', skipped: true, strokes: [] })))
+    setOff(o)
+    if (o[i]) pad.current?.clear(i)
   }
 
   // a retry is practice only: the first attempt is what counts
@@ -174,10 +218,11 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
     }
   }
 
-  const doPeek = () => {
-    if (!charData.length) return
-    setHinted(true)
-    setPeek(charData)
+  // 提示 shows one character for a moment; only that character loses a star
+  const doPeek = (i) => {
+    if (!charData[i]) return
+    setHinted((h) => Object.assign([...h], { [i]: true }))
+    setPeek(Object.assign([], { [i]: charData[i] }))
     setTimeout(() => setPeek(null), 1500)
   }
 
@@ -185,7 +230,8 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
     if (wi + 1 >= words.length) return onFinish(finished, { bestStreak, ms: Date.now() - startedAt.current })
     setWi(wi + 1)
     setChars([])
-    setHinted(false)
+    setHinted([])
+    setOff([])
     setRetrying(false)
     setPadKey((k) => k + 1)
     setPhase('writing')
@@ -193,7 +239,8 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
 
   const retry = () => {
     setRetrying(true)
-    setHinted(false)
+    setHinted([])
+    setOff([])
     setChars([])
     setPadKey((k) => k + 1)
     setPhase('writing')
@@ -206,6 +253,8 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
       ? item.example.replace(/（[　 ]+）/, item.word)
       : item.example
     : null
+  // while writing, 听句子 sits in the example card next to the sentence (else in the word card)
+  const sentenceShown = !feedback && prefs.showExample && !!sentence
   const firstBad = chars.find((c) => !(c.status === 'ok' && !c.hinted) && c.status !== 'unavailable')
   const results = finished // first attempts so far
   const tip = TIPS[trace ? 'trace' : 'dictation'][wi % TIPS[trace ? 'trace' : 'dictation'].length]
@@ -232,12 +281,14 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
         <section className={`play-side ${sideClipped ? 'clipped' : ''}`} ref={side}>
           <div className="word-card">
             <div className="word-card-inner">
-              <div className="pinyin">{item.pinyin.join(' ')}</div>
-              {feedback && <div className="answer kai">{item.word}</div>}
+              <div className="word-text">
+                <div className="pinyin">{item.pinyin.join(' ')}</div>
+                {feedback && <div className="answer kai">{item.word}</div>}
+              </div>
               {canSpeak() && (
                 <div className="listen">
-                  <button className="btn-chunky orange" onClick={() => speakWord(item.word)}><Speaker /> {feedback ? t('词语') : t('再听词语')}</button>
-                  {item.example && (
+                  <button className="btn-chunky orange" onClick={() => speakWord(item.word)}><Speaker /> {feedback ? t('词语') : t('听词语')}</button>
+                  {item.example && !sentenceShown && (
                     <button className="btn-chunky" onClick={() => speakSentence(item)}><Speaker /> {feedback ? t('句子') : t('听句子')}</button>
                   )}
                 </div>
@@ -245,20 +296,27 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
             </div>
           </div>
 
-          {!feedback && (prefs.showExample || prefs.showEnglish) && (sentence || item.en) && (
+          {!feedback && (sentenceShown || (prefs.showEnglish && item.en)) && (
             <div className="card example-card">
-              {prefs.showExample && sentence && (
-                <>
-                  <div className="label">{t('例句')}</div>
-                  <p className="sentence">
-                    {sentence.split(/（[　 ]+）/).map((part, i, arr) => (
-                      <span key={i}>
-                        {part}
-                        {i < arr.length - 1 && <span className="blank" style={{ width: `${glyphs.length * 1.6}em` }} />}
-                      </span>
-                    ))}
-                  </p>
-                </>
+              {sentenceShown && (
+                <div className="example-row">
+                  <div>
+                    <div className="label">{t('例句')}</div>
+                    <p className="sentence">
+                      {sentence.split(/（[　 ]+）/).map((part, i, arr) => (
+                        <span key={i}>
+                          {part}
+                          {i < arr.length - 1 && <span className="blank" style={{ width: `${glyphs.length * 1.6}em` }} />}
+                        </span>
+                      ))}
+                    </p>
+                  </div>
+                  {canSpeak() && (
+                    <button className="btn-chunky listen-sentence" onClick={() => speakSentence(item)} aria-label={t('听句子')}>
+                      <Speaker /> <span>{t('听句子')}</span>
+                    </button>
+                  )}
+                </div>
               )}
               {prefs.showEnglish && item.en && <p className="en">{item.en}</p>}
             </div>
@@ -312,6 +370,21 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
                 cols={cols}
                 traceData={trace && charData.length ? charData : null}
                 peek={peek}
+                off={off}
+                toolsBelow={toolsBelow}
+                tools={(i, cellPad) => (
+                  <>
+                    <button className="btn-chunky" onClick={cellPad.undo} disabled={!!off[i]} aria-label={t('撤销')}><Undo /><span>{t('撤销')}</span></button>
+                    <button className="btn-chunky" onClick={cellPad.clear} disabled={!!off[i]} aria-label={t('擦掉')}><Eraser /><span>{t('擦掉')}</span></button>
+                    {!trace && (
+                      <button className="btn-chunky cream" onClick={() => doPeek(i)} disabled={!!off[i]} aria-label={t('提示（扣 1 颗星）')}>
+                        <Bulb /><span>{t('提示')}</span>
+                        <i className="tool-cost">−1★</i>
+                      </button>
+                    )}
+                    <button className={`btn-chunky cream ${off[i] ? 'on' : ''}`} onClick={() => giveUp(i)} aria-pressed={!!off[i]} aria-label={t('不会写')}><Question /><span>{t('不会写')}</span></button>
+                  </>
+                )}
               />
               <p className={`pad-hint ${nudge ? 'nudge' : 'hide-sm'}`}>
                 {nudge ? t('先在格子里写字哦！') : trace ? t('橙色小点是下一笔的起点 · 写完按「写好了」') : glyphs.length > 1 ? t('一格一个字 · 写完{n}个字按「写好了」', { n: glyphs.length }) : t('一格一个字 · 写完按「写好了」')}
@@ -347,23 +420,12 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
         </section>
       </div>
 
-      <div className="play-actions" ref={below}>
+      <div className="play-actions" ref={below} style={!feedback && lift ? { marginBottom: lift } : null}>
         {!feedback ? (
           <>
-            <div className="tools">
-              <button className="btn-chunky" onClick={() => pad.current?.undo()}><Undo /> {t('撤销')}</button>
-              <button className="btn-chunky" onClick={() => pad.current?.clear()}><Eraser /> {t('擦掉')}</button>
-              {!trace && (
-                <button className="btn-chunky cream hint-btn" onClick={doPeek}>
-                  {t('提示')}<span>{t('扣 1 颗星')}</span>
-                </button>
-              )}
-              <button className={`btn-chunky cream ${trace ? '' : 'show-sm'}`} onClick={giveUp}>{t('不会写')}</button>
-            </div>
             <button className="cta green" onClick={submit} disabled={phase === 'grading'}>
               <Check /> {phase === 'grading' ? t('批改中…') : t('写好了')}
             </button>
-            {!trace && <button className="link-btn give-up hide-sm" onClick={giveUp}>{t('不会写，看答案')}</button>}
           </>
         ) : (
           <button className="cta red" onClick={next}>{wi + 1 >= words.length ? t('看成绩') : t('下一个词')}</button>

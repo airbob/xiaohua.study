@@ -160,8 +160,16 @@ a { color: inherit; }
   /* while writing, the page's own ‹ 地图 button is enough: keep the bar to one row */
   .topbar.in-task .nav-links { display: none; }
 }
-/* writing on a phone held sideways: keep the bar to a single slim row */
+/* writing on a phone held upright: the page's own ‹ button is enough, give the bar's height to the cells */
+@media (max-width: 760px) and (orientation: portrait) {
+  .topbar.writing { display: none; }
+  /* only the cells take touches, so the strips beside them scroll the page (Practice.jsx) */
+  .freepad { width: fit-content; margin-inline: auto; }
+}
+/* phone held sideways: keep the bar to a single slim row, and hide it while writing
+   (the height is what the cells need; keep in sync with PHONE_SIDEWAYS in Practice.jsx) */
 @media (orientation: landscape) and (max-height: 520px) {
+  .topbar.writing { display: none; }
   .topbar-inner { min-height: 0; padding: 4px 16px; }
   .brand-logo { width: 30px; height: 30px; font-size: 18px; }
   .brand-name { font-size: 18px; }
@@ -280,16 +288,22 @@ a { color: inherit; }
 .play-body { display: contents; }
 .play-side { display: flex; flex-direction: column; gap: 10px; }
 .word-card { background: var(--wood); border: 4px solid var(--ink); border-radius: 22px; padding: 8px; box-shadow: 0 5px 0 var(--ink); }
-.word-card-inner { background: var(--sand); border: 3px solid var(--ink); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.pinyin { font-size: 28px; font-weight: 900; color: var(--pinyin); text-align: center; line-height: 1.2; }
+.word-card-inner { background: var(--sand); border: 3px solid var(--ink); border-radius: 14px; padding: 10px 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+/* pinyin (and, on the results, the answer) on the left; 听词语 on its right */
+.word-text { min-width: 0; }
+.pinyin { font-size: 28px; font-weight: 900; color: var(--pinyin); text-align: left; line-height: 1.2; }
 .answer { font-size: 40px; line-height: 1.1; }
-.listen { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.listen { display: flex; flex-direction: column; gap: 8px; flex: none; }
 .listen .btn-chunky { height: 44px; padding: 0 12px; font-size: 15px; }
 .example-card { padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; border-radius: 18px; }
 .example-card .label { font-size: 12px; font-weight: 900; color: var(--muted); }
 .sentence { font-size: 16px; line-height: 1.7; font-weight: 500; }
 .sentence .blank { display: inline-block; height: 1em; border-bottom: 4px dotted var(--red); margin: 0 3px; vertical-align: -2px; }
 .example-card .en { font-size: 13px; color: var(--muted); }
+/* 听句子 sits right of the sentence it reads */
+.example-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.example-row > div { min-width: 0; flex: 1; }
+.btn-chunky.listen-sentence { flex: none; height: 40px; padding: 0 10px; font-size: 14px; white-space: nowrap; }
 .word-score { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
 .word-score h2 { font-size: 20px; }
 .score-row { display: flex; align-items: center; gap: 12px; }
@@ -304,7 +318,26 @@ a { color: inherit; }
 .play-main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-width: 0; flex-grow: 1; }
 .freepad { display: grid; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; padding-top: 14px; }
 .frame { position: relative; background: var(--wood); border: 4px solid var(--ink); border-radius: 26px; box-shadow: 0 8px 0 var(--ink); }
-.paper { background: var(--paper); border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; cursor: crosshair; }
+.paper { position: relative; background: var(--paper); border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; cursor: crosshair; }
+.paper-off { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(244, 238, 226, 0.88); color: var(--muted); font-weight: 900; font-size: 20px; cursor: default; }
+/* each cell's own 撤销 / 擦掉 / 提示 / 不会写: a row under it (TOOLS_BELOW in FreePad.jsx = height + gap),
+   or a column beside it on a phone's stacked cells (TOOLS_SIDE = width + gap) */
+.cell-unit { display: flex; gap: 8px; }
+.cell-unit.below { flex-direction: column; gap: 10px; }
+.cell-tools { display: flex; flex-direction: column; justify-content: center; gap: 6px; width: 56px; padding-bottom: 8px; touch-action: pan-y; }
+.cell-tools .btn-chunky { position: relative; flex: 1 1 0; min-height: 0; max-height: 64px; height: auto; padding: 0; flex-direction: column; gap: 1px; border-radius: 14px; font-size: 12px; line-height: 1.1; }
+.cell-tools .btn-chunky svg { width: 18px; height: 18px; flex: none; }
+.cell-tools .btn-chunky:disabled { opacity: 0.4; cursor: default; }
+.cell-tools .btn-chunky.on { background: var(--orange); font-weight: 900; }
+/* the row takes the frame's width and never stretches the frame wider */
+.cell-unit.below .cell-tools { flex-direction: row; width: 0; min-width: 100%; height: 44px; padding: 0; }
+.cell-unit.below .cell-tools .btn-chunky { max-height: none; flex-direction: row; gap: 4px; font-size: 14px; }
+/* a row under a small cell is too narrow for the words: icons only */
+.cell-unit.below .cell-tools { container-type: inline-size; }
+@container (max-width: 300px) {
+  .cell-tools .btn-chunky span { display: none; }
+}
+.tool-cost { position: absolute; top: -9px; right: -9px; font-style: normal; font-size: 10px; font-weight: 900; line-height: 1; background: var(--orange); border: 2px solid var(--ink); border-radius: 999px; padding: 2px 4px; white-space: nowrap; }
 .paper svg { display: block; }
 .frame-badge { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); background: var(--cream); border: 3px solid var(--ink); border-radius: 999px; padding: 3px 14px; font-size: 14px; font-weight: 900; white-space: nowrap; z-index: 1; }
 .pad-hint { font-size: 14px; font-weight: 700; color: var(--sea-deep); text-align: center; }
@@ -323,13 +356,7 @@ a { color: inherit; }
 .word-stars .display { font-size: 22px; }
 
 .play-actions { display: flex; flex-direction: column; gap: 10px; }
-.tools { display: flex; gap: 8px; }
-.tools > * { flex: 1 1 0; min-width: 0; }
-.tools .btn-chunky { height: 50px; padding: 0 6px; font-size: 15px; }
-.hint-btn { flex-direction: column; gap: 0 !important; line-height: 1.2; }
-.hint-btn span { font-size: 11px; font-weight: 500; color: var(--muted); }
 .play-actions .cta { height: 62px; font-size: 26px; box-shadow: 0 6px 0 var(--ink); }
-.give-up { align-self: center; }
 
 /* two columns as in the design: tablets, desktops, phones held sideways */
 @media (min-width: 900px), (orientation: landscape) and (min-width: 640px) {
@@ -365,7 +392,6 @@ a { color: inherit; }
   .listen .btn-chunky { height: 52px; padding: 0 16px; font-size: 16px; }
   .example-card { padding: 16px 18px; gap: 8px; border-radius: 22px; }
   .sentence { font-size: 19px; }
-  .tools .btn-chunky { height: 56px; font-size: 16px; }
   .play-actions .cta { height: 76px; font-size: 30px; box-shadow: 0 7px 0 var(--ink); }
   .verdict-badge { width: 76px; height: 76px; top: -22px; right: -22px; font-size: 34px; }
   .replay-pill { padding: 8px 14px; font-size: 15px; }
@@ -384,7 +410,6 @@ a { color: inherit; }
   .listen .btn-chunky { height: 38px; font-size: 13px; padding: 0 10px; }
   .example-card { padding: 8px 10px; }
   .sentence { font-size: 14px; }
-  .tools .btn-chunky { height: 42px; font-size: 13px; }
   .play-actions .cta { height: 54px; font-size: 22px; box-shadow: 0 5px 0 var(--ink); }
   .play-main .mode-pick, .play-main .mode-tag, .pad-hint { display: none; }
   .word-score h2 { font-size: 16px; }
@@ -401,8 +426,6 @@ a { color: inherit; }
   .example-card { padding: 8px 12px; gap: 2px; }
   .example-card .label { display: none; }
   .sentence { font-size: 15px; line-height: 1.55; }
-  .tools .btn-chunky { height: 46px; font-size: 14px; gap: 3px; }
-  .tools .btn-chunky svg { width: 16px; height: 16px; }
   .freepad { padding-top: 12px; }
   .word-score { gap: 6px; }
   .word-score h2 { font-size: 17px; }
@@ -664,9 +687,9 @@ a { color: inherit; }
 .ok-text { color: var(--green-dark); }
 .device-list { list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--ink); line-height: 1.7; font-weight: 500; }
 
-/* ---------- phones ---------- */
-@media (max-width: 760px) {
-  .island-home { grid-template-columns: minmax(0, 1fr); padding: 12px; gap: 14px; }
+/* ---------- phones (upright, and held sideways): the map becomes a column of islands ----------
+   the scaled map shrinks the islands below their text on a phone's small screen */
+@media (max-width: 760px), (orientation: landscape) and (max-height: 520px) {
   .map { aspect-ratio: auto; padding: 18px 12px 24px; container-type: normal; }
   .map-art { display: none; }
   /* phones: the islands become a long column, so the start button sticks to the bottom of the
@@ -675,6 +698,13 @@ a { color: inherit; }
   .map-corner { display: contents; }
   .map-note { margin-top: 22px; }
   .cta-stack { position: sticky; bottom: 12px; z-index: 3; margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  /* a soft frosted band behind the stuck button, so the islands scrolling under it blur and fade out */
+  .cta-stack::before {
+    content: ''; position: absolute; z-index: -1; inset: -36px -12px -14px; pointer-events: none;
+    background: rgba(142, 214, 208, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 36px); mask-image: linear-gradient(to bottom, transparent, #000 36px);
+    border-radius: 0 0 28px 28px;
+  }
   .map-cta { min-height: 64px; font-size: 26px; }
   .guest-hint { margin: 0; background: var(--cream); border: 2px solid var(--ink); border-radius: 999px; padding: 1px 12px; font-size: 12px; }
   .map-title { position: static; margin: 0 6px 18px; }
@@ -691,6 +721,11 @@ a { color: inherit; }
   .you-are-here { bottom: auto; top: 50%; left: auto; right: -64px; transform: translateY(-60%); }
   .island-spot:nth-child(even) .you-are-here { right: auto; left: -64px; }
   .you-are-here span { font-size: 11px; padding: 2px 6px; }
+}
+
+/* ---------- phones ---------- */
+@media (max-width: 760px) {
+  .island-home { grid-template-columns: minmax(0, 1fr); padding: 12px; gap: 14px; }
   .side .grow { display: none; }
   
   .complete-page { padding: 110px 12px 32px; }

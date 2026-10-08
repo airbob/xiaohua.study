@@ -254,7 +254,7 @@ export default function App() {
   const active = screen.name === 'home' ? 'map' : screen.name === 'review' ? 'camp' : 'none'
   return (
     <>
-      <NavBar active={active} onNav={nav} onAccount={setModal} onLang={changeLang} onPlus={() => setModal({ plus: true })} />
+      <NavBar active={active} writing={screen.name === 'practice'} onNav={nav} onAccount={setModal} onLang={changeLang} onPlus={() => setModal({ plus: true })} />
       {page}
       {modals}
     </>

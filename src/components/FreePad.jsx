@@ -6,6 +6,10 @@ import { useT } from '../lib/i18n.js'
 export const chrome = (cell) => Math.round(Math.min(12, Math.max(6, cell * 0.035))) + 7
 export const frameGap = (cell) => Math.round(Math.max(14, cell * 0.09))
 
+/** Room taken by a cell's own buttons (撤销 / 擦掉 / 提示 / 不会写): a column beside the frame, or a row under it. */
+export const TOOLS_SIDE = 64
+export const TOOLS_BELOW = 54
+
 /** The dashed 田字格 lines inside a cell. */
 export function Grid({ size }) {
   const c = size / 2
@@ -20,9 +24,11 @@ export function Grid({ size }) {
 /**
  * Whole-word writing pad: one wooden-framed 田字格 per character, written freely — nothing is
  * corrected while writing. A stroke belongs to the cell it starts in.
+ * tools(i, { undo, clear }) renders cell i's own buttons beside it (toolsBelow: under it).
+ * off[i]: the child said 不会写 for that character, so the cell is greyed and takes no strokes.
  * getStrokes() → per cell, strokes in writing order, points normalised to 0..1 of the cell.
  */
-const FreePad = forwardRef(function FreePad({ glyphs, cell, cols, traceData, peek }, ref) {
+const FreePad = forwardRef(function FreePad({ glyphs, cell, cols, traceData, peek, tools, toolsBelow, off = [] }, ref) {
   const t = useT()
   const [strokes, setStrokes] = useState([]) // { cell, pts: [[x, y] in 0..1] }
   const wrap = useRef(null)
@@ -33,7 +39,8 @@ const FreePad = forwardRef(function FreePad({ glyphs, cell, cols, traceData, pee
   // and React's touch listeners are passive, so attach native ones.
   useEffect(() => {
     const el = wrap.current
-    const stop = (e) => e.preventDefault()
+    // the cells' own buttons still get taps, and a swipe on them scrolls the page
+    const stop = (e) => !e.target.closest('.cell-tools') && e.preventDefault()
     el.addEventListener('touchstart', stop, { passive: false })
     el.addEventListener('touchmove', stop, { passive: false })
     return () => {
@@ -65,9 +72,11 @@ const FreePad = forwardRef(function FreePad({ glyphs, cell, cols, traceData, pee
   }
 
   const down = (e) => {
+    if (e.target.closest('.cell-tools')) return
     e.preventDefault()
-    wrap.current.setPointerCapture(e.pointerId)
     const i = cellAt(e.clientX, e.clientY)
+    if (off[i]) return
+    wrap.current.setPointerCapture(e.pointerId)
     drawing.current = { id: e.pointerId, cell: i, pts: [norm(i, e)] }
     setStrokes((s) => [...s, drawing.current])
   }
@@ -84,7 +93,7 @@ const FreePad = forwardRef(function FreePad({ glyphs, cell, cols, traceData, pee
 
   useImperativeHandle(ref, () => ({
     undo: () => setStrokes((s) => s.slice(0, -1)),
-    clear: () => setStrokes([]),
+    clear: (i) => setStrokes((s) => (i == null ? [] : s.filter((x) => x.cell !== i))),
     count: () => strokes.length,
     getStrokes: () => glyphs.map((_, i) => strokes.filter((s) => s.cell === i).map((s) => s.pts)),
   }))
@@ -95,7 +104,10 @@ const FreePad = forwardRef(function FreePad({ glyphs, cell, cols, traceData, pee
     <div
       ref={wrap}
       className="freepad"
-      style={{ gridTemplateColumns: `repeat(${cols}, auto)`, gap: `${frameGap(cell) + 8}px ${frameGap(cell)}px` }}
+      style={{
+        gridTemplateColumns: `repeat(${cols}, auto)`,
+        gap: `${frameGap(cell) + 8}px ${frameGap(cell)}px`,
+      }}
       onPointerDown={down}
       onPointerMove={move}
       onPointerUp={up}
@@ -107,37 +119,54 @@ const FreePad = forwardRef(function FreePad({ glyphs, cell, cols, traceData, pee
         const data = traceData?.[i]
         const next = data && mine.length < data.medians.length ? data.medians[mine.length] : null
         const k = cell / 1024
+        // undo the last stroke written in this cell
+        const undo = () =>
+          setStrokes((s) => {
+            const j = s.findLastIndex((x) => x.cell === i)
+            return j < 0 ? s : [...s.slice(0, j), ...s.slice(j + 1)]
+          })
+        const clear = () => setStrokes((s) => s.filter((x) => x.cell !== i))
         return (
-          <div key={i} className="frame" style={{ padding: fp }}>
-            {data && (
-              <div className="frame-badge">
-                {mine.length < data.medians.length ? t('第 {i} / {n} 笔', { i: mine.length + 1, n: data.medians.length }) : t('写完啦')}
+          <div key={i} className={`cell-unit ${toolsBelow ? 'below' : ''} ${off[i] ? 'off' : ''}`}>
+            <div className="frame" style={{ padding: fp }}>
+              {data && (
+                <div className="frame-badge">
+                  {mine.length < data.medians.length
+                    ? t('第 {i} / {n} 笔', {
+                        i: mine.length + 1,
+                        n: data.medians.length,
+                      })
+                    : t('写完啦')}
+                </div>
+              )}
+              <div className="paper" ref={(el) => (papers.current[i] = el)} style={{ width: cell, height: cell }}>
+                <svg width={cell} height={cell} viewBox={`0 0 ${cell} ${cell}`}>
+                  <Grid size={cell} />
+                  {(data || peek?.[i]) && <RefGlyph data={data || peek[i]} size={cell} color={peek?.[i] ? '#F2B8A8' : '#EADFCB'} />}
+                  {next && (
+                    <g aria-hidden="true">
+                      <polyline
+                        points={next
+                          .slice(0, Math.max(2, Math.ceil(next.length / 2)))
+                          .map(([x, y]) => `${x * k},${(900 - y) * k}`)
+                          .join(' ')}
+                        fill="none"
+                        stroke="#F2A93B"
+                        strokeWidth={Math.max(3, cell / 70)}
+                        strokeDasharray="4 8"
+                        strokeLinecap="round"
+                      />
+                      <circle cx={next[0][0] * k} cy={(900 - next[0][1]) * k} r={Math.max(6, cell / 40)} fill="#F2A93B" stroke="#1B1B26" strokeWidth="3" />
+                    </g>
+                  )}
+                  {mine.map((s, j) => (
+                    <polyline key={j} points={s.pts.map(([x, y]) => `${x * cell},${y * cell}`).join(' ')} fill="none" stroke="#1B1B26" strokeWidth={ink} strokeLinecap="round" strokeLinejoin="round" />
+                  ))}
+                </svg>
+                {off[i] && <div className="paper-off">{t('不会写')}</div>}
               </div>
-            )}
-            <div className="paper" ref={(el) => (papers.current[i] = el)} style={{ width: cell, height: cell }}>
-              <svg width={cell} height={cell} viewBox={`0 0 ${cell} ${cell}`}>
-                <Grid size={cell} />
-                {(data || peek?.[i]) && (
-                  <RefGlyph data={data || peek[i]} size={cell} color={peek?.[i] ? '#F2B8A8' : '#EADFCB'} />
-                )}
-                {next && (
-                  <g aria-hidden="true">
-                    <polyline
-                      points={next.slice(0, Math.max(2, Math.ceil(next.length / 2))).map(([x, y]) => `${x * k},${(900 - y) * k}`).join(' ')}
-                      fill="none" stroke="#F2A93B" strokeWidth={Math.max(3, cell / 70)} strokeDasharray="4 8" strokeLinecap="round"
-                    />
-                    <circle cx={next[0][0] * k} cy={(900 - next[0][1]) * k} r={Math.max(6, cell / 40)} fill="#F2A93B" stroke="#1B1B26" strokeWidth="3" />
-                  </g>
-                )}
-                {mine.map((s, j) => (
-                  <polyline
-                    key={j}
-                    points={s.pts.map(([x, y]) => `${x * cell},${y * cell}`).join(' ')}
-                    fill="none" stroke="#1B1B26" strokeWidth={ink} strokeLinecap="round" strokeLinejoin="round"
-                  />
-                ))}
-              </svg>
             </div>
+            {tools && <div className="cell-tools">{tools(i, { undo, clear })}</div>}
           </div>
         )
       })}

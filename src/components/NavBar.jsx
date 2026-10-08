@@ -28,7 +28,7 @@ const UserIcon = () => (
  * corner — a loud 登录 / 注册 for guests (with an ⓘ explaining why), the child's name once signed in.
  * active: 'map' | 'words' | 'camp' | 'none'. onNav(key) for in-app places; 词语表 is a real page.
  */
-export default function NavBar({ active = 'none', onNav, onAccount, onLang }) {
+export default function NavBar({ active = 'none', writing = false, onNav, onAccount, onLang }) {
   const t = useT()
   const lang = getLang()
   const account = useAccount()
@@ -61,7 +61,7 @@ export default function NavBar({ active = 'none', onNav, onAccount, onLang }) {
   }
 
   return (
-    <nav className={`topbar ${active === 'none' ? 'in-task' : ''}`} ref={bar} aria-label={t('小华听写')}>
+    <nav className={`topbar ${active === 'none' ? 'in-task' : ''} ${writing ? 'writing' : ''}`} ref={bar} aria-label={t('小华听写')}>
       <div className="topbar-inner">
         <a
           className="brand"
