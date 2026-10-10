@@ -29,9 +29,9 @@ const GRADE_CN = { P1: '一年级', P2: '二年级', P3: '三年级', P4: '四�
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const filled = (w) => esc(w.example.replace(/（[　 ]+）/, '\u0000')).replace('\u0000', `<mark>${esc(w.word)}</mark>`)
 
-/** Even split into levels of 9–10 words — keep in sync with split() in src/lib/levels.js. */
+/** Even split into levels of 4–5 words — keep in sync with levelSizes() in src/lib/levels.js. */
 function split(list) {
-  const count = Math.ceil(list.length / 10)
+  const count = Math.ceil(list.length / 5)
   const out = []
   let start = 0
   for (let i = 0; i < count; i++) {

@@ -54,7 +54,7 @@ export default function Home({ prefs, onPrefs, onStartLevel, onMix, onReview, on
 
           <div className="map-title">
             <h1>{t('汉字岛')}</h1>
-            <p>{t('一座岛一个年级，打通 10 个词就过一关')}</p>
+            <p>{t('一座岛一个年级，打通 5 个词就过一关')}</p>
           </div>
 
           <ol className="islands">

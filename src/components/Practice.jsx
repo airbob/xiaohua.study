@@ -4,10 +4,11 @@ import { ResultFrame } from './CharCompare.jsx'
 import StrokeReplay from './StrokeReplay.jsx'
 import { MascotSays } from './Mascot.jsx'
 import { Speaker, Back, Undo, Eraser, Bulb, Question, Check, Chest, Stars } from './Icons.jsx'
-import { speakWord, speakSentence, canSpeak } from '../lib/speech.js'
+import { speakWord, speakSentence, speakPraise, canSpeak } from '../lib/speech.js'
+import { pickPraise } from '../lib/praise.js'
 import { loadChar, preloadWord } from '../lib/chardata.js'
 import { gradeChar } from '../lib/grade.js'
-import { isPerfect, charNotes, wordScore } from '../lib/score.js'
+import { isPerfect, charNotes, wordScore, charPoints } from '../lib/score.js'
 import { useT } from '../lib/i18n.js'
 import { soundCorrect, confettiBurst } from '../lib/celebrate.js'
 
@@ -103,6 +104,7 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
   const [replay, setReplay] = useState(null)
   const [nudge, setNudge] = useState(false)
   const [streak, setStreak] = useState(0)
+  const [praise, setPraise] = useState(null)
   const [bestStreak, setBestStreak] = useState(0)
   const [padKey, setPadKey] = useState(0)
   const startedAt = useRef(Date.now())
@@ -202,18 +204,20 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
     setChars(results)
     setPhase('feedback')
     const perfect = isPerfect(results)
+    const s = retrying ? 0 : perfect ? streak + 1 : 0
     if (!retrying) {
       setFinished((f) => [...f, { ...item, chars: results }])
-      const s = perfect ? streak + 1 : 0
       setStreak(s)
       setBestStreak((b) => Math.max(b, s))
     }
     if (perfect) {
-      // after the frames render, burst from them; the voice follows the chime
+      // the praise grows with the streak; after the frames render, burst from them; the voice follows the chime
+      const p = pickPraise(s, praise)
+      setPraise(p)
       requestAnimationFrame(() => confettiBurst(area.current))
       if (prefs.sound !== false) {
         soundCorrect()
-        setTimeout(() => speakWord('对了'), 450)
+        setTimeout(() => speakPraise(p), 450)
       }
     }
   }
@@ -335,6 +339,7 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
                       <b>{t(CHAR_LABEL[v])}</b>
                       <span>{v === 'ok' ? t('笔顺正确') : notes.join(t('，'))}</span>
                     </span>
+                    {charPoints(c) !== null && <span className="score-points">{t('{n} 分', { n: charPoints(c) })}</span>}
                     <Stars n={charStars(c)} />
                   </div>
                 )
@@ -347,10 +352,10 @@ export default function Practice({ words, title, prefs, onQuit, onFinish }) {
           <div className="hide-sm">
             {feedback ? (
               <MascotSays mood={perfect ? 'happy' : 'worried'} tone="cream">
-                {retrying
-                  ? perfect ? t('这次写对啦！') : t('再看看动画，多练几次就会了。')
-                  : perfect
-                    ? `${t('全对！')}${streak >= 2 ? t('已经连对 {n} 个了！', { n: streak }) : t('继续加油！')}`
+                {perfect && praise
+                  ? t(praise.text)
+                  : retrying
+                    ? t('再看看动画，多练几次就会了。')
                     : t('「{w}」我帮你放进复习营地了，明天再来救它！', { w: item.word })}
               </MascotSays>
             ) : (

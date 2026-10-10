@@ -1,33 +1,41 @@
 import { getLang, tIn } from './i18n.js'
 // Per-character result from Practice:
 //   { char, status: 'ok'|'order'|'wrong'|'blank'|'unavailable', hinted, skipped, grade, strokes }
-// where grade is the gradeChar() output. Scoring:
-//   ok = 1 · right shape, wrong order/direction = 0.6 · wrong = half credit for the
-//   strokes that matched · blank / gave up = 0 · peeking caps it at 0.5.
+// where grade is the gradeChar() output. Each character scores out of 100:
+//   the right shape = 80 points, then 20 for stroke order: every stroke written out of order or
+//   backwards takes 5 off those 20 · wrong shape = up to 40 (half of 80 for the strokes that
+//   matched), nothing for order · blank / gave up = 0 · peeking caps it at 50.
 // Characters without stroke data are left out of the score.
-export function charScore(r) {
+export const SHAPE_POINTS = 80
+export const ORDER_POINTS = 20
+export const ORDER_STROKE_COST = 5
+
+export function charPoints(r) {
   if (r.status === 'unavailable') return null
   if (r.skipped || r.status === 'blank') return 0
-  let s = 1
-  if (r.status === 'order') s = 0.6
-  if (r.status === 'wrong') {
-    const g = r.grade
-    s = (0.5 * Math.max(0, g.matched - g.extra.length)) / g.refCount
+  const g = r.grade
+  let s
+  if (r.status === 'wrong') s = (SHAPE_POINTS / 2) * (Math.max(0, g.matched - g.extra.length) / g.refCount)
+  else {
+    const late = new Set([...(g?.outOfOrder || []).map((o) => o.ref), ...(g?.backwards || [])])
+    s = SHAPE_POINTS + Math.max(0, ORDER_POINTS - ORDER_STROKE_COST * late.size)
   }
-  if (r.hinted) s = Math.min(s, 0.5)
-  return s
+  if (r.hinted) s = Math.min(s, 50)
+  return Math.round(s)
 }
 
+/** A word's score, 0–1: the average of its characters. */
 export function wordScore(chars) {
-  const s = chars.map(charScore).filter((x) => x !== null)
-  return s.length ? s.reduce((a, b) => a + b, 0) / s.length : 1
+  const s = chars.map(charPoints).filter((x) => x !== null)
+  return s.length ? s.reduce((a, b) => a + b, 0) / s.length / 100 : 1
 }
 
 export const isPerfect = (chars) => chars.every((c) => c.status === 'unavailable' || (c.status === 'ok' && !c.hinted && !c.skipped))
 
+/** A set's score, 0–100: every character's points added up, divided by the number of characters. */
 export function setScore(words) {
-  if (!words.length) return 0
-  return Math.round((words.reduce((a, w) => a + wordScore(w.chars), 0) / words.length) * 100)
+  const s = words.flatMap((w) => w.chars.map(charPoints)).filter((x) => x !== null)
+  return s.length ? Math.round(s.reduce((a, b) => a + b, 0) / s.length) : words.length ? 100 : 0
 }
 
 const list = (a, l) => a.map((j) => j + 1).join(l === 'en' ? ', ' : '、')

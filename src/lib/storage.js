@@ -3,6 +3,7 @@
 // finished sets are queued in an outbox and posted to the API, retried until they land.
 // Every access is guarded: storage can be unavailable (private mode, blocked site data).
 import { api } from './api.js'
+import { upgradeLevels } from './levels.js'
 
 const KEY_PREFS = 'xhw.prefs.v1'
 const KEY_OUTBOX = 'xhw.outbox.v1'
@@ -40,15 +41,23 @@ export const getScope = () => scope
 export const loadMistakes = () => read(key('mistakes'), {})
 export const loadSeen = () => read(key('seen'), {})
 export const loadHistory = () => read(key('history'), [])
-/** { P3: { 4: { stars, correct, n } } } */
-export const loadLevels = () => read(key('levels'), {})
+/** { P3: { 4: { stars, correct, n } } } — stars saved under the old 10-word levels are moved over once. */
+export function loadLevels() {
+  const lv = read(key('levels'), {})
+  const up = upgradeLevels(lv)
+  if (up) write(key('levels'), up)
+  return up || lv
+}
 /** Words that left the 错词本 recently: [{ word, t }] */
 export const loadCleared = () => read(key('cleared'), [])
 export const loadPrefs = () => read(KEY_PREFS, {})
 export const savePrefs = (p) => write(KEY_PREFS, p)
 
 /** The guest's data on this device, for merging into a profile on first sign-in. */
-export const guestData = () => ({ mistakes: read(GUEST_KEYS.mistakes, {}), seen: read(GUEST_KEYS.seen, {}), levels: read(GUEST_KEYS.levels, {}) })
+export const guestData = () => {
+  const levels = read(GUEST_KEYS.levels, {})
+  return { mistakes: read(GUEST_KEYS.mistakes, {}), seen: read(GUEST_KEYS.seen, {}), levels: upgradeLevels(levels) || levels }
+}
 export const hasGuestData = () => Object.keys(read(GUEST_KEYS.seen, {})).length > 0
 
 /** Replace a profile's local cache with the server copy. */
@@ -155,11 +164,10 @@ export function copyGuestTo(profileId) {
 }
 
 /** This device's copy of a profile's progress, for uploading when the family moves to Pro. */
-export const localProfileData = (profileId) => ({
-  mistakes: read(`xhw.p.${profileId}.mistakes`, {}),
-  seen: read(`xhw.p.${profileId}.seen`, {}),
-  levels: read(`xhw.p.${profileId}.levels`, {}),
-})
+export const localProfileData = (profileId) => {
+  const levels = read(`xhw.p.${profileId}.levels`, {})
+  return { mistakes: read(`xhw.p.${profileId}.mistakes`, {}), seen: read(`xhw.p.${profileId}.seen`, {}), levels: upgradeLevels(levels) || levels }
+}
 
 // set once a profile's device-only progress has been merged into the cloud
 export const isUploaded = (profileId) => read(`xhw.p.${profileId}.uploaded`, false)

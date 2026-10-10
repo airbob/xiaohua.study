@@ -2,6 +2,7 @@
 import { now, json, readJson, HttpError } from './util.js'
 import { pinHash, startSession, endCurrentSession } from './auth.js'
 import { isPlus, cancelNow } from './billing.js'
+import { upgradeLevels, LEVEL_SIZE } from '../src/lib/levels.js'
 
 const GRADES = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']
 const AVATARS = ['🐼', '🐯', '🐰', '🐨', '🦊', '🐸', '🐧', '🦁', '🐳', '🦄']
@@ -168,9 +169,22 @@ export async function getProgress(env, user, id) {
     if (r.in_book) mistakes[r.word] = { count: r.wrong, streak: r.streak, last: r.last_at, bad: r.bad || '', note: r.note || '' }
     else if (r.cleared_at && r.cleared_at > now() - 8 * 86400_000) cleared.push({ word: r.word, t: r.cleared_at })
   }
-  const levels = {}
+  let levels = {}
   for (const l of (await env.DB.prepare('SELECT grade, level, stars, correct, n FROM levels WHERE profile_id = ?').bind(id).all()).results)
     (levels[l.grade] ||= {})[l.level] = { stars: l.stars, correct: l.correct, n: l.n }
+  // stars saved under the old 10-word levels (n > 5): store them under the 5-word levels once
+  const up = upgradeLevels(levels)
+  if (up) {
+    levels = up
+    const t = now()
+    const rows = Object.entries(up).flatMap(([grade, byLevel]) => Object.entries(byLevel).map(([level, v]) => [grade, Number(level), v]))
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM levels WHERE profile_id = ?').bind(id),
+      ...rows.map(([grade, level, v]) =>
+        env.DB.prepare('INSERT INTO levels (profile_id, grade, level, stars, correct, n, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, grade, level, v.stars, v.correct, v.n, t),
+      ),
+    ])
+  }
   const history = (
     await env.DB.prepare('SELECT created_at AS t, score, source, n FROM sets WHERE profile_id = ? ORDER BY created_at DESC LIMIT 50').bind(id).all()
   ).results
@@ -227,7 +241,8 @@ export async function saveSet(request, env, user, id) {
     )
   }
   const lv = body.level
-  if (lv && /^P[1-6]$/.test(lv.grade) && Number.isInteger(lv.level) && lv.level > 0 && lv.level < 100) {
+  // a page still running the old 10-word levels: its level number means other words now, so only the words count
+  if (lv && results.length <= LEVEL_SIZE && /^P[1-6]$/.test(lv.grade) && Number.isInteger(lv.level) && lv.level > 0 && lv.level < 100) {
     const correct = results.filter((r) => r.perfect).length
     stmts.push(
       env.DB.prepare(
@@ -263,7 +278,8 @@ export async function importLocal(request, env, user, id) {
          in_book = MAX(in_book, excluded.in_book), last_at = MAX(COALESCE(last_at, 0), excluded.last_at)`,
     ).bind(id, w, n, m ? Math.max(1, Math.round(Number(m.count) || 1)) : 0, m ? Math.round(Number(m.streak) || 0) : 0, m ? 1 : 0, last)
   })
-  const levels = body.levels && typeof body.levels === 'object' ? body.levels : {}
+  const sent = body.levels && typeof body.levels === 'object' ? body.levels : {}
+  const levels = upgradeLevels(sent) || sent
   for (const [grade, byLevel] of Object.entries(levels)) {
     if (!/^P[1-6]$/.test(grade) || !byLevel || typeof byLevel !== 'object') continue
     for (const [lvl, v] of Object.entries(byLevel)) {
@@ -273,7 +289,7 @@ export async function importLocal(request, env, user, id) {
         env.DB.prepare(
           `INSERT INTO levels (profile_id, grade, level, stars, correct, n, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT (profile_id, grade, level) DO UPDATE SET stars = MAX(stars, excluded.stars)`,
-        ).bind(id, grade, level, Math.max(1, Math.min(3, Number(v?.stars) || 1)), Math.max(0, Number(v?.correct) || 0), Math.max(1, Number(v?.n) || 10), now()),
+        ).bind(id, grade, level, Math.max(1, Math.min(3, Number(v?.stars) || 1)), Math.max(0, Number(v?.correct) || 0), Math.max(1, Number(v?.n) || LEVEL_SIZE), now()),
       )
     }
   }

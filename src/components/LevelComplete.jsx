@@ -99,6 +99,7 @@ export default function LevelComplete({ results, kind, level, title: listTitle, 
         <p className="next-star">{more === null ? t('拿满 3 颗星，太厉害了！') : t('再写对 {n} 个词就能拿到 {s} 颗星', { n: more, s: stars + 1 })}</p>
 
         <div className="stat-row">
+          <div className="stat"><b className="display">{score}</b><span>{t('平均分')}</span></div>
           <div className="stat"><b className="display green-text">{correct} / {n}</b><span>{t('写对的词')}</span></div>
           <div className="stat"><b className="display">×{stats.bestStreak}</b><span>{t('最高连对')}</span></div>
           <div className="stat"><b className="display">{mmss(stats.ms)}</b><span>{t('用时')}</span></div>

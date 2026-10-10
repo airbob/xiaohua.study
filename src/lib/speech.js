@@ -4,6 +4,7 @@ import AUDIO from '../data/audio-index.json'
 
 const hasWord = new Set(AUDIO.words || [])
 const hasSentence = new Set(AUDIO.sentences || [])
+const hasPraise = new Set(AUDIO.praise || [])
 const clipUrl = (kind, word) => `/audio/${kind}/${encodeURIComponent(word)}.mp3`
 
 let current = null
@@ -62,4 +63,10 @@ export function speakSentence(item) {
   const text = item.example.replace(/（[　 ]+）/, item.word)
   if (hasSentence.has(item.word)) playClip(clipUrl('s', item.word), text)
   else speak(text)
+}
+
+/** A praise line from praise.js: its cheerful recorded clip, or the browser voice. */
+export function speakPraise(p) {
+  if (hasPraise.has(p.id)) playClip(clipUrl('p', p.id), p.text)
+  else speak(p.text, { rate: 1 })
 }

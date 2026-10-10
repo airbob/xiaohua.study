@@ -15,7 +15,8 @@
 //   ONLY=还是,长大 FORCE=1 node scripts/gen-tts.mjs   # redo just these words (and their sentences)
 // Other env: VOICE (default zh-CN-XiaoxiaoNeural), CONCURRENCY (default 3)
 //
-// Output: public/audio/w/<word>.mp3, public/audio/s/<word>.mp3, and src/data/audio-index.json
+// Output: public/audio/w/<word>.mp3, public/audio/s/<word>.mp3, public/audio/p/<id>.mp3 (praise
+// lines from src/lib/praise.js, read in a cheerful voice), and src/data/audio-index.json
 // listing the clips the app should use. Re-runnable; failures are retried on the next run.
 //
 // Pronunciation fixes: if a word comes out wrong (多音字), add it to data/tts-overrides.json
@@ -25,6 +26,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn, spawnSync } from 'node:child_process'
+import { PRAISE } from '../src/lib/praise.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const readJson = async (p, fallback) => {
@@ -52,7 +54,8 @@ const DRY = !!process.env.DRY
 const FORCE = !!process.env.FORCE
 const LIMIT = Number(process.env.LIMIT || Infinity)
 const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split(/[,，\s]+/).filter(Boolean)) : null
-const EXTRA_WORDS = ['对了'] // feedback clip
+const EXTRA_WORDS = ['对了'] // old feedback clip, still played by pages loaded before the praise lines
+const PRAISE_RATE = '+0%'
 
 const words = await readJson(path.join(ROOT, 'src/data/words.json'), [])
 const overrides = await readJson(path.join(ROOT, 'data/tts-overrides.json'), {})
@@ -87,13 +90,16 @@ function body(job) {
 
 // xml:lang="zh-CN" and the leading <speak are required by the xiaohua worker's filter
 const ssml = (job) =>
-  `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="zh-CN"><voice name="${VOICE}"><prosody rate="${job.rate}">${body(job)}</prosody></voice></speak>`
+  job.kind === 'p'
+    ? `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="zh-CN"><voice name="${VOICE}"><mstts:express-as style="cheerful" styledegree="1.6"><prosody rate="${job.rate}" pitch="+5%">${esc(job.text)}</prosody></mstts:express-as></voice></speak>`
+    : `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="zh-CN"><voice name="${VOICE}"><prosody rate="${job.rate}">${body(job)}</prosody></voice></speak>`
 
 // ---- jobs ------------------------------------------------------------------
 const jobs = []
 for (const w of [...words.map((w) => w.word), ...EXTRA_WORDS]) jobs.push({ kind: 'w', word: w, text: w, rate: WORD_RATE })
 for (const w of words)
   if (w.example) jobs.push({ kind: 's', word: w.word, text: w.example.replace(/（[　 ]+）/, w.word), rate: SENTENCE_RATE })
+for (const p of PRAISE) jobs.push({ kind: 'p', word: p.id, text: p.text, rate: PRAISE_RATE })
 
 const file = (j) => path.join(ROOT, 'public/audio', j.kind, `${j.word}.mp3`)
 const exists = (f) => fs.stat(f).then((s) => s.size > 0, () => false)
@@ -151,7 +157,7 @@ const todo = []
 for (const j of jobs) if ((!ONLY || ONLY.has(j.word)) && (FORCE || !(await exists(file(j))))) todo.push(j)
 const batch = todo.slice(0, LIMIT)
 const chars = batch.reduce((n, j) => n + j.text.length, 0)
-console.log(`${jobs.length} clips in total (${jobs.filter((j) => j.kind === 'w').length} words, ${jobs.filter((j) => j.kind === 's').length} sentences)`)
+console.log(`${jobs.length} clips in total (${jobs.filter((j) => j.kind === 'w').length} words, ${jobs.filter((j) => j.kind === 's').length} sentences, ${jobs.filter((j) => j.kind === 'p').length} praise)`)
 console.log(`${todo.length} to generate${batch.length < todo.length ? `, doing ${batch.length} now` : ''} · ~${chars} characters · voice ${VOICE} · mode ${mode || 'none'}`)
 
 if (!DRY && batch.length) {
@@ -161,6 +167,7 @@ if (!DRY && batch.length) {
   }
   await fs.mkdir(path.join(ROOT, 'public/audio/w'), { recursive: true })
   await fs.mkdir(path.join(ROOT, 'public/audio/s'), { recursive: true })
+  await fs.mkdir(path.join(ROOT, 'public/audio/p'), { recursive: true })
   let done = 0, failed = 0
   const queue = [...batch]
   const t0 = Date.now()
@@ -187,7 +194,7 @@ if (!DRY && batch.length) {
 }
 
 // the index reflects what is on disk, so a partial run is still usable
-const index = { voice: VOICE, words: [], sentences: [] }
-for (const j of jobs) if (await exists(file(j))) (j.kind === 'w' ? index.words : index.sentences).push(j.word)
+const index = { voice: VOICE, words: [], sentences: [], praise: [] }
+for (const j of jobs) if (await exists(file(j))) index[{ w: 'words', s: 'sentences', p: 'praise' }[j.kind]].push(j.word)
 if (!DRY) await fs.writeFile(path.join(ROOT, 'src/data/audio-index.json'), JSON.stringify(index))
-console.log(`audio index: ${index.words.length} words, ${index.sentences.length} sentences${DRY ? ' (dry run, not written)' : ''}`)
+console.log(`audio index: ${index.words.length} words, ${index.sentences.length} sentences, ${index.praise.length} praise${DRY ? ' (dry run, not written)' : ''}`)

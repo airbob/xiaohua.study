@@ -60,7 +60,7 @@ export function soundCorrect() {
   tone(c, E6, t + 0.3, 0.35, { type: 'sine', gain: 0.12 })
 }
 
-/** A level (10 words) finished: a longer fanfare ending on a full chord. */
+/** A level (5 words) finished: a longer fanfare ending on a full chord. */
 export function soundLevelComplete() {
   const c = audio()
   if (!c) return

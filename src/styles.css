@@ -314,6 +314,7 @@ a { color: inherit; }
 .score-row.ok .score-text b { color: var(--green-dark); }
 .score-row.order .score-text b { color: #a8650c; }
 .score-text span { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.score-points { flex: none; font-weight: 900; font-size: 15px; white-space: nowrap; }
 
 .play-main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-width: 0; flex-grow: 1; }
 .freepad { display: grid; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; padding-top: 14px; }
@@ -446,7 +447,7 @@ a { color: inherit; }
 .complete-card h1 { font-size: 54px; line-height: 1; }
 .big-stars { display: flex; gap: 14px; align-items: flex-end; }
 .next-star { font-size: 16px; font-weight: 700; color: var(--muted); }
-.stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; width: 100%; }
+.stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; width: 100%; }
 .stat { background: #fff; border: 3px solid var(--ink); border-radius: 20px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .stat b { font-size: 40px; line-height: 1.1; }
 .stat span { font-size: 14px; font-weight: 700; }
