@@ -6,13 +6,13 @@ import { speakWord } from '../lib/speech.js'
 import { Back, Tent, Campfire, Sprout } from './Icons.jsx'
 import Mascot from './Mascot.jsx'
 import Footer from './Footer.jsx'
-import { GRADES } from '../lib/levels.js'
+import { GRADES, LEVEL_SIZE } from '../lib/levels.js'
 import { useT } from '../lib/i18n.js'
 import { noteText } from '../lib/score.js'
 import { customWordInfo } from './ListsPage.jsx'
 
 const byWord = new Map(WORDS.map((w) => [w.word, w]))
-const ROUND = 10
+const ROUND = LEVEL_SIZE // a round is as long as an island level
 
 /** 复习营地: every word in the 错词本 as a card; review them 10 at a time. */
 export default function ReviewCamp({ prefs, onPrefs, onBack, onStart }) {

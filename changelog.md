@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.4 — 2026-10-10
+- 随机探险 and a 复习营地 round are now 5 words too (were 10), the same length as an island level.
+
 ## 0.9.3 — 2026-10-10
 - Each level on the islands is now 5 words instead of 10, so a level is a shorter, kid-sized round (P1 has 21 levels, P5 69). Stars: all 5 right = 3 stars, 3–4 right = 2 stars, finishing = 1 star. Stars earned on the old 10-word levels move over automatically (on the device, and on the server for Pro): each new level gets the stars of the old level its words came from. The word-list pages (/words/p1/ …) show the same 5-word levels.
 - New scoring, out of 100 per character: the right shape earns 80, and stroke order the other 20 — each stroke written out of order or backwards takes 5 off (so at worst a right-shaped character still gets 80). A wrong shape gets up to 40 for the strokes that matched and nothing for order; blank or 不会写 is 0; 提示 caps the character at 50. Each character's score shows on the word's result card, and the end-of-level screen has a new 平均分 tile: all the characters' scores added up and divided by the number of characters.

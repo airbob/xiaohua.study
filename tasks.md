@@ -14,7 +14,7 @@
 ## Backlog
 - [ ] Weekly parent report email (Pro).
 - [ ] Pro extras: custom pages, custom mascot.
-- [ ] After launch: verify xiaohua.study in Google Search Console, submit sitemap.xml.
+- [x] After launch: verify xiaohua.study in Google Search Console, submit sitemap.xml (domain property verified by DNS; sitemap submitted 2026-10-10 — check it reads "Success" with 8 pages in a day or two).
 - [ ] Spot-check example sentences, add a manual override file.
 - [ ] Bundle stroke data locally / offline support (PWA).
 

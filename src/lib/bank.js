@@ -1,8 +1,10 @@
 import WORDS from '../data/words.json'
 import { loadSeen, loadMistakes } from './storage.js'
+import { LEVEL_SIZE } from './levels.js'
 
 export const LEVELS = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']
-export const SET_SIZE = 10
+// 随机探险 is as long as an island level
+export const SET_SIZE = LEVEL_SIZE
 
 const byWord = new Map(WORDS.map((w) => [w.word, w]))
 
